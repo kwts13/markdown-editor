@@ -1,7 +1,7 @@
 import * as store from './store.js';
 import { EditorState, Compartment, EditorView, keymap, drawSelection, placeholder, history, historyKeymap, defaultKeymap,
   indentMore, indentLess, markdown, markdownLanguage, markdownKeymap } from '../vendor/codemirror.js';
-import { liveRender } from './live.js';
+import { liveRender, frontmatter } from './live.js';
 import { toggleWrap } from './format.js';
 import { selectionToolbar } from './toolbar.js';
 
@@ -17,7 +17,8 @@ const modeExt = m => (m === 'read' ? [EditorState.readOnly.of(true), EditorView.
 function newState(doc) {
   return EditorState.create({ doc, extensions: [
     history(), drawSelection(), EditorView.lineWrapping, placeholder('Start typing in markdown...'),
-    markdown({ base: markdownLanguage }),
+    // no setext headings: a '---' line under text is a divider, not an H2 underline
+    markdown({ base: markdownLanguage, addKeymap: false, extensions: { remove: ['SetextHeading'] } }),
     liveRender, selectionToolbar,
     modeSlot.of(modeExt(store.get().ui.viewMode)),
     EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor', spellcheck: 'true' }),
@@ -25,6 +26,13 @@ function newState(doc) {
       // Ctrl/Cmd+E is the app-level edit/read toggle; stop CodeMirror's emacs line-end binding eating it
       { key: 'Mod-e', run: () => true }, { key: 'Ctrl-e', run: () => true },
       { key: 'Mod-b', run: v => toggleWrap(v, '**') }, { key: 'Mod-i', run: v => toggleWrap(v, '*') },
+      // Enter after a lone '---' on line 1 starts a Properties block: add the closing fence and put the caret inside
+      { key: 'Enter', run: v => {
+        const sel = v.state.selection.main, line = v.state.doc.line(1);
+        if (!sel.empty || sel.head !== line.to || line.text.trimEnd() !== '---' || frontmatter(v.state.doc)) return false;
+        v.dispatch({ changes: { from: line.to, insert: '\n\n---' }, selection: { anchor: line.to + 1 }, userEvent: 'input' });
+        return true;
+      } },
       { key: 'Escape', run: () => { escaped = true; return false; } },
       { key: 'Tab', run: v => { if (escaped) { escaped = false; return false; } return indentMore(v) || true; },
         shift: v => { if (escaped) { escaped = false; return false; } return indentLess(v) || true; } },
