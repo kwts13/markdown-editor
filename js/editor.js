@@ -1,7 +1,7 @@
 import * as store from './store.js';
 import { EditorState, Compartment, EditorView, keymap, drawSelection, placeholder, history, historyKeymap, defaultKeymap,
   indentMore, indentLess, markdown, markdownLanguage, markdownKeymap } from '../vendor/codemirror.js';
-import { liveRender, getFolds, restoreFolds, toggleDetailsAtCaret } from './live.js';
+import { liveRender, toggleDetailsAtCaret } from './live.js';
 import { propertiesExtension, prepareDoc, startProperties, frontmatter, propertiesUp, propertiesBackspace, focusProperties } from './properties.js';
 import { exitQuote, tableTab, tableEnter } from './blocks.js';
 import { toggleWrap } from './format.js';
@@ -18,10 +18,9 @@ let loading = false;
 const modeSlot = new Compartment();
 const modeExt = m => (m === 'read' ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []);
 
-const foldsByNote = new Map();   // note id -> <details> folds, kept while you switch notes
-function newState(content, folds) {
+function newState(content) {
   const { text: doc, anchor } = prepareDoc(content, EditorState.create({ doc: content }).doc);
-  return restoreFolds(EditorState.create({ doc, selection: { anchor }, extensions: [
+  return EditorState.create({ doc, selection: { anchor }, extensions: [
     history(), drawSelection(), EditorView.lineWrapping, placeholder('Start typing in markdown...'),
     // no setext headings: a '---' line under text is a divider, not an H2 underline
     markdown({ base: markdownLanguage, addKeymap: false, extensions: { remove: ['SetextHeading'] } }),
@@ -54,7 +53,7 @@ function newState(content, folds) {
       if (u.selectionSet || u.docChanged) escaped = false;
     }),
     EditorView.domEventHandlers({ blur: () => { store.flush(); escaped = false; } }),
-  ] }), folds);
+  ] });
 }
 
 let view = new EditorView({ state: newState(''), parent: host });
@@ -64,10 +63,9 @@ export function load() {
   const n = st.notes[st.ui.openNoteId];
   if (!n) return;
   if (currentId !== n.id) {
-    if (currentId) foldsByNote.set(currentId, getFolds(view.state));
     currentId = n.id;
     loading = true;
-    view.setState(newState(n.content, foldsByNote.get(n.id)));   // fresh state also resets undo history per note
+    view.setState(newState(n.content));   // fresh state also resets undo history per note
     loading = false;
     view.scrollDOM.scrollTop = 0;
   }

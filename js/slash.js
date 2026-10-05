@@ -67,7 +67,7 @@ const COMMANDS = [
       put(v, r, `> [!${CALLOUTS.includes(t) ? t : 'note'}]\n> ${S}${E}`, { block: true });
     } },
   { name: 'details', icon: '▸', title: 'Collapsible section', detail: 'A heading that folds its content away', arg: true,
-    run: (v, r) => put(v, r, `<details>\n<summary>${S}${(r.arg || '').trim() || 'Summary'}${E}</summary>\n\nDetails\n\n</details>`, { block: true, blank: true }) },
+    run: (v, r) => put(v, r, `<details open>\n<summary>${S}${(r.arg || '').trim() || 'Summary'}${E}</summary>\n\nDetails\n\n</details>`, { block: true, blank: true }) },
   { name: 'toc', icon: '≡', title: 'Table of contents', detail: 'A list of links to this note’s headings (static: re-run to refresh)', alias: ['contents'],
     run: (v, r) => {
       const hs = headings(v.state);

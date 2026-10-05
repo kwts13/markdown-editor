@@ -110,8 +110,8 @@ class CalloutLabel extends Widget {
 const CALLOUT_TYPES = { note: 'note', info: 'info', tip: 'tip', hint: 'tip', success: 'success', check: 'success', done: 'success', question: 'question', help: 'question', faq: 'question',
   warning: 'warning', caution: 'warning', attention: 'warning', danger: 'danger', error: 'danger', failure: 'danger', bug: 'bug', example: 'example', quote: 'quote', cite: 'quote', abstract: 'info', summary: 'info', todo: 'info' };
 
-// ---- <details><summary> sections, foldable from the chevron ----
-const toggleFold = StateEffect.define();
+// ---- <details><summary> sections, foldable from the chevron. Folded = no `open` attribute, so the state lives in the note itself ----
+const isExpanded = text => /^\s*<details\s+open\s*>\s*$/i.test(text);
 const inCodeAt = (state, pos) => {
   for (let n = syntaxTree(state).resolveInner(pos, 1); n; n = n.parent) if (/^(FencedCode|CodeBlock|InlineCode|CodeText)$/.test(n.name)) return true;
   return false;
@@ -130,57 +130,49 @@ function detailsBlocks(state) {
     }
     if (close < 0) continue;
     const sm = n + 1 < close ? /^(\s*)<summary>(.*)<\/summary>\s*$/i.exec(doc.line(n + 1).text) : null;
-    out.push({ open: n, summary: sm ? n + 1 : null, close });
+    out.push({ open: n, summary: sm ? n + 1 : null, close, expanded: isExpanded(line.text) });
   }
   return out;
 }
 class FoldedWidget extends Widget { toDOM() { const d = document.createElement('div'); d.className = 'cm-folded'; return d; } }
+// Fold or unfold by switching <details> <-> <details open> on the section's first line.
+function toggleDetails(view, openLine) {
+  const line = view.state.doc.line(openLine), indent = /^\s*/.exec(line.text)[0];
+  view.dispatch({ changes: { from: line.from, to: line.to, insert: indent + (isExpanded(line.text) ? '<details>' : '<details open>') }, userEvent: 'input.fold' });
+}
 class DetailsToggle extends Widget {
   toDOM(view) {
     const b = document.createElement('span'); b.className = 'cm-details-toggle' + (this.key ? ' folded' : ''); b.textContent = '\u25B8';
     b.setAttribute('role', 'button'); b.setAttribute('aria-label', this.key ? 'Expand section' : 'Collapse section'); b.tabIndex = 0;
-    const toggle = () => view.dispatch({ effects: toggleFold.of(view.state.doc.lineAt(view.posAtDOM(b)).from) });
+    const toggle = () => {
+      const ln = view.state.doc.lineAt(view.posAtDOM(b)).number, blk = detailsBlocks(view.state).find(x => x.summary === ln);
+      if (blk) toggleDetails(view, blk.open);
+    };
     b.addEventListener('mousedown', e => { e.preventDefault(); toggle(); });
     b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } else if (e.key === 'Escape') view.focus(); });
     return b;
   }
   ignoreEvent() { return true; }
 }
-function foldDecos(state, folds) {
-  if (!folds.length) return Decoration.none;
-  const blocks = detailsBlocks(state), out = [];
-  for (const p of folds) {
-    if (p > state.doc.length) continue;
-    const ln = state.doc.lineAt(p).number, b = blocks.find(x => x.summary === ln);
-    if (b && b.close - 1 > b.summary) out.push(Decoration.replace({ block: true, widget: new FoldedWidget('f') }).range(state.doc.line(b.summary + 1).from, state.doc.line(b.close - 1).to));
+function foldDecos(state) {
+  const out = [];
+  for (const b of detailsBlocks(state)) {
+    if (b.expanded || !b.summary || b.close - 1 <= b.summary) continue;
+    out.push(Decoration.replace({ block: true, widget: new FoldedWidget('f') }).range(state.doc.line(b.summary + 1).from, state.doc.line(b.close - 1).to));
   }
   return Decoration.set(out, true);
 }
-const setFolds = StateEffect.define();   // restore a note's folds when it is reopened
 const foldField = StateField.define({
-  create: () => ({ folds: [], decos: Decoration.none }),
-  update(v, tr) {
-    let folds = tr.docChanged ? v.folds.map(p => tr.changes.mapPos(p, -1)) : v.folds;
-    for (const e of tr.effects) {
-      if (e.is(toggleFold)) folds = folds.includes(e.value) ? folds.filter(p => p !== e.value) : [...folds, e.value];
-      else if (e.is(setFolds)) {   // keep only positions that are still a <summary> line
-        const sums = new Set(detailsBlocks(tr.state).filter(b => b.summary).map(b => tr.state.doc.line(b.summary).from));
-        folds = e.value.filter(p => sums.has(p));
-      }
-    }
-    if (!tr.docChanged && folds === v.folds) return v;
-    return { folds, decos: foldDecos(tr.state, folds) };
-  },
-  provide: f => [EditorView.decorations.from(f, v => v.decos), EditorView.atomicRanges.of(view => view.state.field(f).decos)],
+  create: foldDecos,
+  update: (v, tr) => (tr.docChanged ? foldDecos(tr.state) : v),
+  provide: f => [EditorView.decorations.from(f), EditorView.atomicRanges.of(view => view.state.field(f))],
 });
-export const getFolds = state => state.field(foldField, false)?.folds || [];
-export const restoreFolds = (state, folds) => (folds && folds.length ? state.update({ effects: setFolds.of(folds) }).state : state);
 // Keyboard fold/unfold of the <details> section that holds the caret (Ctrl/Cmd+Alt+[)
 export function toggleDetailsAtCaret(view) {
   const doc = view.state.doc, ln = doc.lineAt(view.state.selection.main.head).number;
   const b = detailsBlocks(view.state).filter(x => x.summary && x.open <= ln && ln <= x.close).pop();
   if (!b) return false;
-  view.dispatch({ effects: toggleFold.of(doc.line(b.summary).from) });
+  toggleDetails(view, b.open);
   return true;
 }
 
@@ -312,7 +304,6 @@ function build(view) {
   }
 
   // <details> sections
-  const folds = view.state.field(foldField, false)?.folds || [];
   for (const b of detailsBlocks(state)) {
     const open = state.doc.line(b.open), close = state.doc.line(b.close);
     const rangeTouched = touches(open.from, close.to);
@@ -325,7 +316,7 @@ function build(view) {
     if (!touches(close.from, close.to) && close.from < close.to) out.push(hide.range(close.from, close.to));
     if (b.summary) {
       const sl = state.doc.line(b.summary), m = /^(\s*)(<summary>)(.*)(<\/summary>)\s*$/i.exec(sl.text);
-      out.push(Decoration.widget({ widget: new DetailsToggle(folds.includes(sl.from)), side: -1 }).range(sl.from));
+      out.push(Decoration.widget({ widget: new DetailsToggle(!b.expanded), side: -1 }).range(sl.from));
       if (m && !touches(sl.from, sl.to)) {
         out.push(hide.range(sl.from + m[1].length, sl.from + m[1].length + m[2].length));
         const endTag = sl.from + sl.text.trimEnd().length;
@@ -369,7 +360,7 @@ const plugin = ViewPlugin.fromClass(class {
   constructor(view) { this.set(build(view)); }
   set(b) { this.decorations = b.all; this.atomic = b.atomic; }
   update(u) {
-    if (u.docChanged || u.selectionSet || u.viewportChanged || u.focusChanged || u.transactions.some(tr => tr.effects.some(e => e.is(toggleFold) || e.is(setFolds)))) this.set(build(u.view));
+    if (u.docChanged || u.selectionSet || u.viewportChanged || u.focusChanged || false) this.set(build(u.view));
   }
 }, {
   decorations: v => v.decorations,

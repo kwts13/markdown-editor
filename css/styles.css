@@ -295,3 +295,7 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
   .cm-live .cm-task { width: 20px; height: 20px; }
   .cm-live .cm-details-toggle { width: 1.8em; padding: 8px 0; }
 }
+
+/* ---- back / forward ---- */
+.nav-btns { display: flex; gap: 2px; margin-right: auto; }
+.nav-btns .icon-btn:disabled { opacity: .35; cursor: default; background: none; color: var(--muted); }

@@ -108,6 +108,33 @@ window.addEventListener('beforeunload', store.flush);
 window.addEventListener('pagehide', store.flush);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') store.flush(); });
 
+// ---------- back / forward through the notes you've opened ----------
+const btnBack = document.getElementById('btn-back'), btnForward = document.getElementById('btn-forward');
+let navStack = [], navIdx = -1, navigating = false;
+const navLive = i => !!store.get().notes[navStack[i]] && navStack[i] !== store.get().ui.openNoteId;
+const navTarget = dir => { for (let i = navIdx + dir; i >= 0 && i < navStack.length; i += dir) if (navLive(i)) return i; return -1; };
+function updateNav() { btnBack.disabled = navTarget(-1) < 0; btnForward.disabled = navTarget(1) < 0; }
+function recordNav() {
+  const id = store.get().ui.openNoteId;
+  if (!navigating && id && navStack[navIdx] !== id) {
+    navStack = navStack.slice(0, navIdx + 1); navStack.push(id);
+    if (navStack.length > 100) navStack.shift();
+    navIdx = navStack.length - 1;
+  }
+  updateNav();
+}
+function navGo(dir) {
+  const i = navTarget(dir);
+  if (i < 0) return;
+  navIdx = i; navigating = true;
+  store.open(navStack[i]); noteOpened({});
+  navigating = false; updateNav();
+}
+btnBack.onclick = () => navGo(-1);
+btnForward.onclick = () => navGo(1);
+store.subscribe(t => { if (t === 'open') recordNav(); });
+recordNav();
+
 // ---------- export ----------
 // The note's content already carries its YAML properties block, so the file is the note as plain markdown.
 document.getElementById('btn-export').onclick = () => {

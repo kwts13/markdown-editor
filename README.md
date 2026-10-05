@@ -37,6 +37,8 @@ Slash commands: type `/` at the start of a line (or after a space) to insert a c
 
 Tables: Tab / Shift+Tab move between cells (Tab in the last cell adds a row), Enter goes to the same cell in the next row (on an empty last row it leaves the table). Enter on an empty `>` line leaves a quote or callout. Properties: Up arrow from the first body line (or Ctrl/Cmd+Alt+P) moves into the panel, Esc returns to the note, Ctrl/Cmd+Enter in a field adds a row; Backspace at the start of the first body line never merges into the panel. Ctrl/Cmd+Alt+[ folds or unfolds the `<details>` section at the caret (or focus the chevron and press Enter). Videos: the pencil in a player's corner (or the padding around it) reveals the link for editing.
 
+Back and forward arrows at the top left of the note step through the notes you've opened (including by following links) this session. A `/details` section is folded or expanded with its chevron; the state is saved in the note as `<details>` (folded) or `<details open>`, so it survives reloads and exports.
+
 Ctrl/Cmd+Alt+N new note, Ctrl/Cmd+E edit/read, Ctrl/Cmd+B / I bold / italic, Ctrl/Cmd+\ toggle sidebar, F2 rename, Delete delete, Shift+F10 / context-menu key for menu, Esc then Tab leaves the editor.
 
 Data is stored only in this browser (localStorage). Clearing site data deletes it.
