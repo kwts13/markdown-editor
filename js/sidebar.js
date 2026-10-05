@@ -19,6 +19,7 @@ export function init({ noteOpened }) {
   store.subscribe(t => { if (t === 'tree') render(); });
   tree.addEventListener('click', onClick);
   tree.addEventListener('dblclick', onDblClick);
+  tree.addEventListener('auxclick', e => { const li = e.target.closest('li[role=treeitem]'); if (e.button === 1 && li && li.dataset.kind === 'note') { e.preventDefault(); openItem(li.dataset.id, true); } });
   tree.addEventListener('keydown', onKey);
   tree.addEventListener('contextmenu', onContext);
   tree.addEventListener('focusin', e => {
@@ -186,8 +187,8 @@ export function startRename(id) {
 }
 
 // ---------- actions ----------
-function openItem(id) {
-  if (kindOf(id) === 'note') { store.open(id); onNoteOpened(); }
+function openItem(id, newTab = false) {
+  if (kindOf(id) === 'note') { store.open(id, { newTab }); onNoteOpened(); }
 }
 function toggleFolder(id) {
   selectedFolderId = id;
@@ -242,7 +243,7 @@ function menuFor(id) {
     items.push({ label: 'New note here', action: () => newNote(id) });
     items.push({ label: 'New folder here', action: () => newFolder(id) });
     items.push({ sep: true });
-  } else items.push({ label: 'Open', action: () => openItem(id) });
+  } else { items.push({ label: 'Open', action: () => openItem(id) }); items.push({ label: 'Open in new tab', action: () => openItem(id, true) }); }
   items.push({ label: 'Rename', hint: 'F2', action: () => startRename(id) });
   items.push({ label: 'Move to...', action: () => moveItem(id) });
   items.push({ sep: true });
@@ -258,7 +259,7 @@ function onClick(e) {
   const id = li.dataset.id;
   setFocused(id, true);
   if (li.dataset.kind === 'folder') toggleFolder(id);
-  else { selectedFolderId = null; openItem(id); }
+  else { selectedFolderId = null; openItem(id, e.ctrlKey || e.metaKey); }
 }
 function onDblClick(e) {
   const li = e.target.closest('li[role=treeitem]');

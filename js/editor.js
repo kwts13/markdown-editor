@@ -57,18 +57,27 @@ function newState(content) {
   ] });
 }
 
+// Every open tab keeps its own editor state (undo history, caret, scroll) while another tab is showing.
+const tabStates = new Map();   // note id -> { state, scroll }
 let view = new EditorView({ state: newState(''), parent: host });
 
 export function load() {
   const st = store.get();
   const n = st.notes[st.ui.openNoteId];
   if (!n) return;
+  const tabs = st.ui.tabs || [];
+  for (const id of [...tabStates.keys()]) if (!tabs.includes(id)) tabStates.delete(id);   // tab closed: forget its state
   if (currentId !== n.id) {
+    if (currentId && tabs.includes(currentId)) tabStates.set(currentId, { state: view.state, scroll: view.scrollDOM.scrollTop });
     currentId = n.id;
+    titleInput.value = n.name;   // a different note: always show its name, even if the name box had focus
+    const saved = tabStates.get(n.id);
     loading = true;
-    view.setState(newState(n.content));   // fresh state also resets undo history per note
+    // reuse the tab's saved state when the note hasn't changed behind its back; otherwise start fresh
+    view.setState(saved && saved.state.doc.toString() === n.content ? saved.state : newState(n.content));
     loading = false;
-    view.scrollDOM.scrollTop = 0;
+    view.scrollDOM.scrollTop = saved ? saved.scroll : 0;
+    if (saved) applyMode();   // the saved state predates any Edit/Read switch since
   }
   else if (n.content !== view.state.doc.toString()) {   // changed outside the editor (e.g. a [[link]] rewritten by a rename)
     loading = true;

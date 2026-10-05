@@ -3,7 +3,7 @@ import * as storage from './storage.js';
 
 export const MAX_NAME = 100;
 const listeners = new Set();
-let state = { folders: {}, notes: {}, ui: { openNoteId: null, expanded: [], sidebarWidth: 280, sidebarCollapsed: false, viewMode: 'edit', author: '', sortBy: 'name-asc', foldersFirst: false } };
+let state = { folders: {}, notes: {}, ui: { openNoteId: null, expanded: [], sidebarWidth: 280, sidebarCollapsed: false, viewMode: 'edit', author: '', sortBy: 'name-asc', foldersFirst: false, tabs: [] } };
 let saveTimer = null;
 let dirty = false;
 let saveError = null;
@@ -61,7 +61,10 @@ export function init() {
       if (isUntouched(n)) delete state.notes[n.id];
     }
   }
+  // tabs: keep the ones that still exist; the page always opens on a new note, in a new tab
+  state.ui.tabs = (Array.isArray(state.ui.tabs) ? state.ui.tabs : []).filter((x, i, a) => state.notes[x] && a.indexOf(x) === i);
   const id = createNote(null, { silent: true });
+  state.ui.tabs.push(id);
   state.ui.openNoteId = id;
   if (state.ui.viewMode === 'read') state.ui.viewMode = 'edit';
   persistNow();
@@ -246,7 +249,12 @@ export function createNote(folderId = null, opts = {}) {
   const id = uid();
   state.notes[id] = { id, name: uniqueName('note', folderId, 'Untitled'), folderId, content: defaultContent(), updatedAt: Date.now(), createdAt: Date.now(), order: orderForNew(folderId) };
   if (folderId) reveal(folderId);
-  if (!opts.silent) { state.ui.openNoteId = id; if (state.ui.viewMode === 'read') state.ui.viewMode = 'edit'; schedule(); emit('tree'); emit('open'); }
+  if (!opts.silent) {
+    const at = state.ui.tabs.indexOf(state.ui.openNoteId);
+    state.ui.tabs.splice(at < 0 ? state.ui.tabs.length : at + 1, 0, id);   // a new note opens in a new tab beside the current one
+    state.ui.openNoteId = id; if (state.ui.viewMode === 'read') state.ui.viewMode = 'edit';
+    schedule(); emit('tree'); emit('open'); emit('tabs');
+  }
   return id;
 }
 export function createFolder(parentId = null) {
@@ -337,11 +345,16 @@ export function move(kind, id, targetFolderId) {
   return { ok: true, renamed: item.name !== old ? item.name : null };
 }
 function afterDeleteOpenCheck() {
+  state.ui.tabs = state.ui.tabs.filter(id => state.notes[id]);
   if (!state.notes[state.ui.openNoteId]) {
     const rest = Object.values(state.notes).sort((a, b) => b.updatedAt - a.updatedAt);
-    if (rest.length) { state.ui.openNoteId = rest[0].id; reveal(rest[0].folderId); emit('open'); }
-    else createNote(null);
+    const next = state.notes[state.ui.tabs[0]] || rest[0];
+    if (next) {
+      if (!state.ui.tabs.includes(next.id)) state.ui.tabs.push(next.id);
+      state.ui.openNoteId = next.id; reveal(next.folderId); emit('open');
+    } else createNote(null);
   }
+  emit('tabs');
 }
 export function deleteNote(id) {
   delete state.notes[id];
@@ -354,12 +367,43 @@ export function deleteFolder(id) {
   state.ui.expanded = state.ui.expanded.filter(x => !ids.has(x));
   afterDeleteOpenCheck(); schedule(); emit('tree');
 }
-export function open(id) {
+// Show a note. A note that's already in a tab just switches to it; otherwise it replaces the current tab's note,
+// or opens a new tab beside it when newTab is set.
+export function open(id, opts = {}) {
   if (!state.notes[id] || state.ui.openNoteId === id) return;
   flush();
+  const tabs = state.ui.tabs;
+  if (!tabs.includes(id)) {
+    const at = tabs.indexOf(state.ui.openNoteId);
+    if (opts.newTab || at < 0) tabs.splice(at < 0 ? tabs.length : at + 1, 0, id);
+    else tabs[at] = id;
+  }
   state.ui.openNoteId = id;
   reveal(state.notes[id].folderId);
-  schedule(); emit('open'); emit('tree');
+  schedule(); emit('open'); emit('tree'); emit('tabs');
+}
+export function closeTab(id) {
+  const tabs = state.ui.tabs, i = tabs.indexOf(id);
+  if (i < 0) return;
+  flush();
+  const untouched = isUntouched(state.notes[id]);   // a note nobody typed in: closing its tab discards it, like closing an empty document
+  tabs.splice(i, 1);
+  if (untouched) delete state.notes[id];
+  if (state.ui.openNoteId === id) {
+    const next = state.notes[tabs[i]] || state.notes[tabs[i - 1]];
+    if (next) { state.ui.openNoteId = next.id; reveal(next.folderId); schedule(); emit('open'); emit('tree'); emit('tabs'); }
+    else createNote(null);   // never leave the window empty
+    return;
+  }
+  schedule(); emit('tabs'); if (untouched) emit('tree');
+}
+export function closeTabs(ids) { for (const id of ids) closeTab(id); }
+export function moveTab(id, toIndex) {
+  const tabs = state.ui.tabs, i = tabs.indexOf(id);
+  if (i < 0) return;
+  tabs.splice(i, 1);
+  tabs.splice(Math.max(0, Math.min(tabs.length, toIndex)), 0, id);
+  schedule(); emit('tabs');
 }
 export function setContent(id, content) {
   const n = state.notes[id];

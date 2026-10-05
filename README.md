@@ -22,6 +22,7 @@ ES modules need http(s), so serve the folder (opening index.html via file:// wil
 - `js/slash.js` the `/` command menu (`/code /table /callout /details /toc /image /video /todo-list /link`), `js/suggest.js` its popup (also used for `[[` completion), `js/wikilinks.js` `[[wikilink]]` helpers
 - `js/blocks.js` editing helpers for plain-text blocks: one-Enter exit from quotes/callouts, table Tab/Shift+Tab/Enter
 - `js/tables.js` pipe tables rendered as editable tables (cells show inline markdown; edits rewrite the markdown)
+- `js/tabs.js` the tab bar (each open note is a tab with its own undo history, caret and scroll)
 - `js/live.js` live-render extension: styles markdown in place, hides markers except at the caret
 - `js/ui.js` toast, dialogs, menu; `js/app.js` wiring
 - `vendor/` a CodeMirror 6 bundle (`codemirror.js`, built once with esbuild from `@codemirror/{state,view,commands,language,lang-markdown}`; local, works offline)
@@ -41,6 +42,8 @@ Tables: Tab / Shift+Tab move between cells (Tab in the last cell adds a row), En
 Back and forward arrows at the top left of the note step through the notes you've opened (including by following links) this session. A `/details` section is folded or expanded with its chevron; the state is saved in the note as `<details>` (folded) or `<details open>`, so it survives reloads and exports.
 
 Tables: a markdown table renders as a real table; click a cell (or arrow down into it) to edit, Tab/Shift+Tab move between cells and add a row at the end, Enter/arrows move down/up, and the strip under the table adds/removes rows and columns, sets alignment, or shows the markdown source.
+
+Tabs: clicking a note shows it in the current tab (or switches to the tab it's already in); Cmd/Ctrl+click, middle-click, or "Open in new tab" opens it in a new tab, and so do new notes and Cmd/Ctrl+click on a wikilink. Close with the × , middle-click or Ctrl/Cmd+Alt+W (the browser keeps Ctrl/Cmd+W); drag tabs to reorder; right-click for close others / close to the right. Open tabs are remembered across reloads; closing a tab for a note nobody typed in discards it. (On a Mac, Ctrl+click is a right-click, so use Cmd+click.)
 
 Ctrl/Cmd+Alt+N new note, Ctrl/Cmd+E edit/read, Ctrl/Cmd+B / I bold / italic, Ctrl/Cmd+\ toggle sidebar, F2 rename, Delete delete, Shift+F10 / context-menu key for menu, Esc then Tab leaves the editor.
 

@@ -37,6 +37,11 @@
   </div>
   <div id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" aria-valuemin="180" aria-valuemax="600" tabindex="0"></div>
   <main id="main">
+    <div class="tabbar" role="tablist" aria-label="Open notes">
+      <div id="tabs" class="tabs"></div>
+      <button id="tab-new" class="icon-btn" title="New note in a new tab (Ctrl/Cmd+Alt+N)" aria-label="New tab">
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg></button>
+    </div>
     <header class="topbar">
       <div class="nav-btns" role="group" aria-label="Note history">
         <button id="btn-back" class="icon-btn" title="Back" aria-label="Back to the previous note" disabled>
