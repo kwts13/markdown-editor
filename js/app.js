@@ -8,7 +8,6 @@ import { toast } from './ui.js';
 
 const app = document.getElementById('app');
 const banner = document.getElementById('banner');
-const statusEl = document.getElementById('save-status');
 const resizer = document.getElementById('resizer');
 
 store.init();
@@ -88,14 +87,10 @@ let notice = '';   // persistent notice (e.g. corrupt-data recovery) shown whene
 function showBanner(msg) { banner.textContent = msg; banner.hidden = !msg; }
 function setStatus(kind) {
   if (kind === 'error') {
-    statusEl.textContent = 'Not saved'; statusEl.dataset.state = 'error';
     showBanner(store.getSaveError() === 'full'
       ? 'Browser storage is full. Your changes are NOT being saved. Copy important notes elsewhere; delete notes to free space.'
       : 'Browser storage is unavailable. Your changes are NOT being saved and will be lost when you close this tab.');
-  } else {
-    statusEl.textContent = kind === 'pending' ? 'Saving...' : 'Saved'; statusEl.dataset.state = kind;
-    if (kind === 'saved') showBanner(notice);
-  }
+  } else if (kind === 'saved') showBanner(notice);   // no "Saved" label any more: only problems are surfaced, in the banner
 }
 store.subscribe((t, d) => { if (t === 'save') setStatus(d); });
 const prob = store.getInitProblem();
