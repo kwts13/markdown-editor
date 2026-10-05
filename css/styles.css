@@ -169,3 +169,13 @@ dialog.modal p { margin: 0 0 16px; color: var(--muted); }
   .title { flex: 1 1 120px; }
   .cm-content { padding-left: 16px; padding-right: 16px; }
 }
+
+/* ---- Selection formatting toolbar ---- */
+.sel-toolbar { position: fixed; z-index: 40; display: flex; align-items: center; gap: 1px; padding: 4px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 9px; box-shadow: var(--shadow); font: 13px var(--font-ui); }
+.sel-toolbar[hidden] { display: none; }
+.sel-toolbar button { min-width: 28px; height: 28px; padding: 0 7px; border: 0; border-radius: 6px; background: none; color: var(--text); }
+.sel-toolbar button:hover { background: var(--bg-active); }
+.sel-toolbar .tb-bold { font-weight: 800; } .sel-toolbar .tb-italic { font-style: italic; font-family: var(--font-read); }
+.sel-toolbar .tb-strike { text-decoration: line-through; } .sel-toolbar .tb-code { font: 12px var(--font-mono); }
+.tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }

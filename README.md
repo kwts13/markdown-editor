@@ -16,6 +16,7 @@ ES modules need http(s), so serve the folder (opening index.html via file:// wil
 - `js/store.js` state (ID-based flat maps), mutations, debounced autosave
 - `js/sidebar.js` tree, rename, drag/drop, context menu, move picker
 - `js/editor.js` CodeMirror 6 editor, edit/read modes, shortcuts
+- `js/toolbar.js` floating formatting toolbar shown above selected text; `js/format.js` the formatting commands (also used by Ctrl/Cmd+B / I)
 - `js/live.js` live-render extension: styles markdown in place, hides markers except at the caret
 - `js/ui.js` toast, dialogs, menu; `js/app.js` wiring
 - `vendor/` a CodeMirror 6 bundle (`codemirror.js`, built once with esbuild from `@codemirror/{state,view,commands,language,lang-markdown}`; local, works offline)
