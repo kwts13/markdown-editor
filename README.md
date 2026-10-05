@@ -32,7 +32,7 @@ Sidebar sorting: the arrows button sorts notes and folders together by name, mod
 
 Search (Ctrl/Cmd+Space, or Ctrl/Cmd+K): opens a search overlay; plain words match note names, text and properties; `author:Sam` or `tags:todo` match a property's value, `tags:` any note that has the property, and quotes keep a phrase together. Arrow keys pick a result, Enter opens it and jumps to the match.
 
-Slash commands: type `/` at the start of a line (or after a space) to insert a code block, table (`/table 4x3`), callout (`/callout warning`), collapsible section, table of contents (static), image or video (a URL: YouTube, Vimeo or a video file), to-do list or web link. Wikilinks: type `[[` to pick a note; `[[Note]]`, `[[Note|alias]]`, `[[Folder/Note]]`, `[[Note#Heading]]` and `[[#Heading]]` all work. Ctrl/Cmd+click a link to follow it (a plain click when reading); a link to a missing note creates it. Renaming a note updates links to it.
+Slash commands: type `/` at the start of a line (or after a space) to insert a code block, table (`/table 4x3`), callout (`/callout warning`), collapsible section, table of contents (static), image or video (a URL: YouTube, Vimeo or a video file), to-do list or web link. Wikilinks: type `[[` to pick a note; `[[Note]]`, `[[Note|alias]]`, `[[Folder/Note]]`, `[[Note#Heading]]` and `[[#Heading]]` all work. Click a link to follow it (a link to a missing note creates it); to edit one, move the caret into it with the arrow keys. Renaming a note updates links to it.
 
 Ctrl/Cmd+Alt+N new note, Ctrl/Cmd+E edit/read, Ctrl/Cmd+B / I bold / italic, Ctrl/Cmd+\ toggle sidebar, F2 rename, Delete delete, Shift+F10 / context-menu key for menu, Esc then Tab leaves the editor.
 

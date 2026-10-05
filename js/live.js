@@ -308,6 +308,8 @@ function build(view) {
         if (m[2] !== undefined && m[2].trim()) {
           const aliasFrom = start + 2 + m[1].length + 1;
           out.push(hide.range(start + 2, aliasFrom), markDeco(cls, attrs).range(aliasFrom, end - 2));
+        } else if (m[1].startsWith('#')) {   // [[#Heading]]: show just the heading text, without the #
+          out.push(hide.range(start + 2, start + 3), markDeco(cls, attrs).range(start + 3, end - 2));
         } else out.push(markDeco(cls, attrs).range(start + 2, end - 2));
       }
     }
@@ -337,12 +339,12 @@ const openLinks = EditorView.domEventHandlers({
   },
 });
 
-// Ctrl/Cmd+click a [[wikilink]] in the editor (plain click when reading) to go to that note
+// Click a rendered [[wikilink]] to go to that note. While the caret is inside a link (raw [[ ]] showing) a click
+// just places the caret so the link can be edited.
 const openWikilinks = EditorView.domEventHandlers({
   mousedown(e, view) {
     const a = e.target.closest && e.target.closest('[data-wikilink]');
-    if (!a || e.button !== 0) return false;
-    if (view.state.facet(EditorView.editable) && !(e.ctrlKey || e.metaKey)) return false;
+    if (!a || e.button !== 0 || a.textContent.startsWith('[[')) return false;
     e.preventDefault();
     document.dispatchEvent(new CustomEvent('wikilink', { detail: { target: a.getAttribute('data-wikilink') } }));
     return true;
