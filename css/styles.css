@@ -87,19 +87,13 @@ li[aria-expanded="true"] > .row .chev { transform: rotate(90deg); }
 #banner { background: var(--banner-bg); color: var(--banner-text); padding: 8px 16px; border-bottom: 1px solid var(--banner-border); font-size: 13px; }
 
 #panes { flex: 1; display: grid; min-height: 0; grid-template-columns: 1fr; }
-#panes[data-mode="live"] #preview, #panes[data-mode="source"] #preview, #panes[data-mode="preview"] #editor { display: none; }
-#panes[data-mode="split"] { grid-template-columns: 1fr 1fr; }
-#panes[data-mode="split"] #preview { border-left: 1px solid var(--border); }
 #editor { min-height: 0; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
-#preview { overflow: auto; padding: 24px max(24px, calc((100% - 760px) / 2)); }
-#panes[data-mode="split"] #preview { padding: 24px; }
 
 /* ---- CodeMirror editor ---- */
 .cm-editor { flex: 1; min-height: 0; background: var(--bg); color: var(--text); outline: none; }
 .cm-editor.cm-focused { outline: none; }
 .cm-scroller { font: 15px/1.65 var(--font-mono); overflow: auto; }
 .cm-content { padding: 24px max(24px, calc((100% - 780px) / 2)) 40vh; caret-color: var(--text); }
-#panes[data-mode="split"] .cm-content { padding: 24px 24px 40vh; }
 .cm-line { padding: 0; }
 .cm-cursor, .cm-dropCursor { border-left: 2px solid var(--text); }
 .cm-selectionBackground, .cm-focused .cm-selectionBackground { background: color-mix(in srgb, var(--accent) 30%, transparent) !important; }
@@ -174,7 +168,5 @@ dialog.modal p { margin: 0 0 16px; color: var(--muted); }
   #resizer { display: none; }
   .topbar { flex-wrap: wrap; gap: 6px; padding: 8px; }
   .title { flex: 1 1 120px; }
-  #panes[data-mode="split"] { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-  #panes[data-mode="split"] #preview { border-left: 0; border-top: 1px solid var(--border); }
-  .cm-content, #preview { padding-left: 16px; padding-right: 16px; }
+  .cm-content { padding-left: 16px; padding-right: 16px; }
 }

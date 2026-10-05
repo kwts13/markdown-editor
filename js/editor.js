@@ -1,46 +1,26 @@
 import * as store from './store.js';
-import { marked } from '../vendor/marked.esm.js';
-import DOMPurify from '../vendor/purify.es.mjs';
 import { EditorState, Compartment, EditorView, keymap, drawSelection, placeholder, history, historyKeymap, defaultKeymap,
   indentMore, indentLess, markdown, markdownLanguage, markdownKeymap } from '../vendor/codemirror.js';
 import { liveRender } from './live.js';
 
-marked.setOptions({ gfm: true, breaks: false });
-DOMPurify.addHook('afterSanitizeAttributes', node => {
-  if (node.tagName === 'A') { node.setAttribute('target', '_blank'); node.setAttribute('rel', 'noopener noreferrer'); }
-  if (node.tagName === 'INPUT') {
-    // only GFM task-list checkboxes are allowed; raw HTML inputs are phishing surface (QA fix)
-    if ((node.getAttribute('type') || '').toLowerCase() !== 'checkbox') node.remove(); else node.setAttribute('disabled', '');
-  }
-});
-
 const host = document.getElementById('editor');
-const preview = document.getElementById('preview');
 const pane = document.getElementById('panes');
 const titleInput = document.getElementById('note-title');
 let currentId = null;
-let previewTimer = null;
 let escaped = false;
 let loading = false;
-const liveSlot = new Compartment();
-
-const text = () => view.state.doc.toString();
-
-export function renderPreview() {
-  const src = text();
-  const html = marked.parse(src || '');
-  preview.innerHTML = DOMPurify.sanitize(html, { USE_PROFILES: { html: true }, FORBID_TAGS: ['form', 'style', 'button', 'select', 'textarea'] });
-  if (!src.trim()) preview.innerHTML = '<p class="muted">Nothing to preview yet.</p>';
-}
+const modeSlot = new Compartment();
+const modeExt = m => (m === 'read' ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []);
 
 function newState(doc) {
   return EditorState.create({ doc, extensions: [
     history(), drawSelection(), EditorView.lineWrapping, placeholder('Start typing in markdown...'),
     markdown({ base: markdownLanguage }),
-    liveSlot.of(store.get().ui.viewMode === 'live' ? liveRender : []),
+    liveRender,
+    modeSlot.of(modeExt(store.get().ui.viewMode)),
     EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor', spellcheck: 'true' }),
     keymap.of([
-      // Ctrl/Cmd+E is the app-level preview toggle; stop CodeMirror's emacs line-end binding eating it
+      // Ctrl/Cmd+E is the app-level edit/read toggle; stop CodeMirror's emacs line-end binding eating it
       { key: 'Mod-e', run: () => true }, { key: 'Ctrl-e', run: () => true },
       { key: 'Mod-b', run: v => wrap(v, '**') }, { key: 'Mod-i', run: v => wrap(v, '*') },
       { key: 'Escape', run: () => { escaped = true; return false; } },
@@ -51,7 +31,6 @@ function newState(doc) {
     EditorView.updateListener.of(u => {
       if (u.docChanged && !loading) {
         store.setContent(currentId, u.state.doc.toString());
-        if (store.get().ui.viewMode === 'split') { clearTimeout(previewTimer); previewTimer = setTimeout(renderPreview, 150); }
       }
       if (u.selectionSet || u.docChanged) escaped = false;
     }),
@@ -71,31 +50,24 @@ export function load() {
     view.setState(newState(n.content));   // fresh state also resets undo history per note
     loading = false;
     view.scrollDOM.scrollTop = 0;
-    renderPreview();
   }
   if (document.activeElement !== titleInput) titleInput.value = n.name;
 }
 export function focusEditor() {
   applyMode();
-  if (store.get().ui.viewMode === 'preview') preview.focus(); else view.focus();
+  view.focus();
 }
 
 export function applyMode() {
   const m = store.get().ui.viewMode;
   pane.dataset.mode = m;
-  view.dispatch({ effects: liveSlot.reconfigure(m === 'live' ? liveRender : []) });
+  view.dispatch({ effects: modeSlot.reconfigure(modeExt(m)) });
   document.querySelectorAll('[data-mode-btn]').forEach(b => {
     const on = b.dataset.modeBtn === m; b.setAttribute('aria-pressed', on); b.classList.toggle('on', on);
   });
-  if (m === 'preview' || m === 'split') renderPreview();
 }
 export function setMode(m) { store.setUi({ viewMode: m }); applyMode(); focusEditor(); }
-let lastEditMode = 'live';
-export function toggleMode() {
-  const cur = store.get().ui.viewMode;
-  if (cur !== 'preview') lastEditMode = cur;
-  setMode(cur === 'preview' ? lastEditMode : 'preview');
-}
+export function toggleMode() { setMode(store.get().ui.viewMode === 'read' ? 'edit' : 'read'); }
 
 // Ctrl/Cmd+B / I: toggle the marker around the selection
 function wrap(v, mark) {

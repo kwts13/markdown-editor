@@ -44,7 +44,7 @@ class ImageWidget extends Widget {
 
 function build(view) {
   const { state } = view;
-  const sel = state.selection.ranges;
+  const sel = view.state.facet(EditorView.editable) ? state.selection.ranges : [];
   const touches = (from, to) => sel.some(r => r.from <= to && r.to >= from);
   const lineTouched = pos => { const l = state.doc.lineAt(pos); return touches(l.from, l.to); };
   const out = [];

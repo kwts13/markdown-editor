@@ -40,17 +40,14 @@
     <header class="topbar">
       <input id="note-title" class="title" aria-label="Note name" maxlength="200" spellcheck="false">
       <span id="save-status" class="status" role="status" aria-live="polite">Saved</span>
-      <div class="seg" role="group" aria-label="View mode">
-        <button data-mode-btn="live" title="Live render: markdown is styled as you type (Ctrl/Cmd+E toggles preview)" aria-pressed="true">Live</button>
-        <button data-mode-btn="source" title="Raw markdown source" aria-pressed="false">Source</button>
-        <button data-mode-btn="split" title="Side by side" aria-pressed="false">Split</button>
-        <button data-mode-btn="preview" title="Preview (Ctrl/Cmd+E toggles)" aria-pressed="false">Preview</button>
+      <div class="seg" role="group" aria-label="Mode">
+        <button data-mode-btn="edit" title="Edit (Ctrl/Cmd+E toggles)" aria-pressed="true">Edit</button>
+        <button data-mode-btn="read" title="Read-only (Ctrl/Cmd+E toggles)" aria-pressed="false">Read</button>
       </div>
     </header>
     <div id="banner" role="alert" hidden></div>
-    <div id="panes" data-mode="live">
+    <div id="panes" data-mode="edit">
       <div id="editor"></div>
-      <article id="preview" class="markdown" tabindex="0" aria-label="Preview"></article>
     </div>
   </main>
 </div>
