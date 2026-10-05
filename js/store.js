@@ -3,7 +3,7 @@ import * as storage from './storage.js';
 
 export const MAX_NAME = 100;
 const listeners = new Set();
-let state = { folders: {}, notes: {}, ui: { openNoteId: null, expanded: [], sidebarWidth: 280, sidebarCollapsed: false, viewMode: 'edit' } };
+let state = { folders: {}, notes: {}, ui: { openNoteId: null, expanded: [], sidebarWidth: 280, sidebarCollapsed: false, viewMode: 'live' } };
 let saveTimer = null;
 let dirty = false;
 let saveError = null;
@@ -35,6 +35,7 @@ export function init() {
     }
     const ui = { ...state.ui, ...(data.ui || {}) };
     ui.expanded = (ui.expanded || []).filter(id => folders[id]);
+    if (!['live', 'source', 'split', 'preview'].includes(ui.viewMode)) ui.viewMode = 'live';
     state = { folders, notes, ui };
     // AC-2: discard untouched empty default-named notes
     for (const n of Object.values(state.notes)) {
@@ -43,7 +44,7 @@ export function init() {
   }
   const id = createNote(null, { silent: true });
   state.ui.openNoteId = id;
-  if (state.ui.viewMode === 'preview') state.ui.viewMode = 'edit';
+  if (state.ui.viewMode === 'preview') state.ui.viewMode = 'live';
   persistNow();
   emit('tree'); emit('open');
 }
@@ -125,7 +126,7 @@ export function createNote(folderId = null, opts = {}) {
   const id = uid();
   state.notes[id] = { id, name: uniqueName('note', folderId, 'Untitled'), folderId, content: '', updatedAt: Date.now() };
   if (folderId) reveal(folderId);
-  if (!opts.silent) { state.ui.openNoteId = id; if (state.ui.viewMode === 'preview') state.ui.viewMode = 'edit'; schedule(); emit('tree'); emit('open'); }
+  if (!opts.silent) { state.ui.openNoteId = id; if (state.ui.viewMode === 'preview') state.ui.viewMode = 'live'; schedule(); emit('tree'); emit('open'); }
   return id;
 }
 export function createFolder(parentId = null) {

@@ -87,14 +87,45 @@ li[aria-expanded="true"] > .row .chev { transform: rotate(90deg); }
 #banner { background: var(--banner-bg); color: var(--banner-text); padding: 8px 16px; border-bottom: 1px solid var(--banner-border); font-size: 13px; }
 
 #panes { flex: 1; display: grid; min-height: 0; grid-template-columns: 1fr; }
-#panes[data-mode="edit"] #preview, #panes[data-mode="preview"] #editor { display: none; }
+#panes[data-mode="live"] #preview, #panes[data-mode="source"] #preview, #panes[data-mode="preview"] #editor { display: none; }
 #panes[data-mode="split"] { grid-template-columns: 1fr 1fr; }
 #panes[data-mode="split"] #preview { border-left: 1px solid var(--border); }
-#editor { width: 100%; height: 100%; resize: none; border: 0; outline: none; background: var(--bg); color: var(--text);
-  font: 15px/1.65 var(--font-mono); padding: 24px max(24px, calc((100% - 780px) / 2)); tab-size: 2; white-space: pre-wrap; overflow-wrap: break-word; }
-#panes[data-mode="split"] #editor { padding: 24px; }
+#editor { min-height: 0; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
 #preview { overflow: auto; padding: 24px max(24px, calc((100% - 760px) / 2)); }
 #panes[data-mode="split"] #preview { padding: 24px; }
+
+/* ---- CodeMirror editor ---- */
+.cm-editor { flex: 1; min-height: 0; background: var(--bg); color: var(--text); outline: none; }
+.cm-editor.cm-focused { outline: none; }
+.cm-scroller { font: 15px/1.65 var(--font-mono); overflow: auto; }
+.cm-content { padding: 24px max(24px, calc((100% - 780px) / 2)) 40vh; caret-color: var(--text); }
+#panes[data-mode="split"] .cm-content { padding: 24px 24px 40vh; }
+.cm-line { padding: 0; }
+.cm-cursor, .cm-dropCursor { border-left: 2px solid var(--text); }
+.cm-selectionBackground, .cm-focused .cm-selectionBackground { background: color-mix(in srgb, var(--accent) 30%, transparent) !important; }
+.cm-placeholder { color: var(--muted); }
+
+.cm-live .cm-scroller { font: 17px/1.7 var(--font-read); }
+.cm-live .cm-h { font-family: var(--font-ui); font-weight: 700; line-height: 1.3; padding-top: .5em; }
+.cm-live .cm-h1 { font-size: 2em; border-bottom: 1px solid var(--border); padding-bottom: .15em; margin-bottom: .2em; }
+.cm-live .cm-h2 { font-size: 1.5em; } .cm-live .cm-h3 { font-size: 1.2em; }
+.cm-live .cm-h4, .cm-live .cm-h5, .cm-live .cm-h6 { font-size: 1em; }
+.cm-live .cm-strong { font-weight: 700; }
+.cm-live .cm-em { font-style: italic; }
+.cm-live .cm-strike { text-decoration: line-through; color: var(--muted); }
+.cm-live .cm-icode { font: .88em var(--font-mono); background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+.cm-live .cm-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: text; }
+.cm-live .cm-quote { border-left: 3px solid var(--accent); padding-left: 1em; color: var(--quote); }
+.cm-live .cm-bullet { color: var(--muted); display: inline-block; width: 1.1em; }
+.cm-live .cm-task { margin: 0 .5em 0 0; vertical-align: middle; cursor: pointer; accent-color: var(--accent); }
+.cm-live .cm-hr { display: block; border-top: 1px solid var(--border); margin: .8em 0; height: 0; }
+.cm-live .cm-img { max-width: 100%; vertical-align: middle; border-radius: 4px; }
+.cm-live .cm-fence { font: 13.5px/1.5 var(--font-mono); background: var(--code-bg); padding: 0 16px; }
+.cm-live .cm-fence-top { border-radius: 8px 8px 0 0; padding-top: 8px; margin-top: 4px; }
+.cm-live .cm-fence-bottom { border-radius: 0 0 8px 8px; padding-bottom: 8px; margin-bottom: 4px; }
+.cm-live .cm-fence-hidden { line-height: .6; font-size: 8px; }
+.cm-live .cm-table { font: 14px/1.6 var(--font-mono); }
+
 .muted { color: var(--muted); }
 
 .markdown { font: 17px/1.7 var(--font-read); }
@@ -145,5 +176,5 @@ dialog.modal p { margin: 0 0 16px; color: var(--muted); }
   .title { flex: 1 1 120px; }
   #panes[data-mode="split"] { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
   #panes[data-mode="split"] #preview { border-left: 0; border-top: 1px solid var(--border); }
-  #editor, #preview { padding-left: 16px; padding-right: 16px; }
+  .cm-content, #preview { padding-left: 16px; padding-right: 16px; }
 }
