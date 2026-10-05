@@ -26,11 +26,15 @@ document.addEventListener('wikilink', e => {
   const { note: name, heading } = splitTarget(e.detail.target);
   const from = store.get().ui.openNoteId;
   let note = name ? store.resolveNote(e.detail.target, from) : store.get().notes[from];
+  let created = false;
   if (!note) {
+    if (e.detail.readOnly) return toast(`"${name}" doesn't exist yet. Switch to Edit mode to create it.`);   // Read mode changes nothing
     const folder = store.get().notes[from]?.folderId ?? null;
     note = store.get().notes[store.createNoteNamed(name, folder)];
+    created = true;
   }
   if (note.id !== from) { store.open(note.id); noteOpened({}); }
+  if (created) toast(`Created note "${note.name}"`);
   if (heading) editor.revealHeading(heading) || toast(`No heading "${heading}" in "${note.name}".`);
 });
 document.addEventListener('props:author', e => { if (store.get().ui.author !== e.detail) store.setUi({ author: e.detail }); });
