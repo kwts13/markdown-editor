@@ -36,7 +36,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .side-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 6px 14px; }
 .brand { font-weight: 650; letter-spacing: .01em; }
 .side-actions { display: flex; gap: 2px; }
-.side-tools { display: flex; gap: 2px; padding: 0 10px 6px; }
 #icon-sun { display: none; }
 :root[data-eff="light"] #icon-moon { display: none; }
 :root[data-eff="light"] #icon-sun { display: inline; }
