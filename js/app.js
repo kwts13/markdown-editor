@@ -1,6 +1,7 @@
 import * as store from './store.js';
 import * as sidebar from './sidebar.js';
 import * as editor from './editor.js';
+import * as searchPanel from './searchpanel.js';
 
 const app = document.getElementById('app');
 const banner = document.getElementById('banner');
@@ -9,11 +10,14 @@ const resizer = document.getElementById('resizer');
 
 store.init();
 const narrow = () => matchMedia('(max-width: 640px)').matches;
-sidebar.init({ noteOpened: ({ isNew } = {}) => {
+const noteOpened = ({ isNew, find } = {}) => {
   if (narrow() && !store.get().ui.sidebarCollapsed) { store.setUi({ sidebarCollapsed: true }); applyLayout(); }
   editor.load();
   if (isNew) editor.focusTitle(); else editor.focusEditor();
-} });
+  if (find) editor.revealText(find);   // opened from a search: jump to the match
+};
+sidebar.init({ noteOpened });
+searchPanel.init({ open: (id, find) => { store.open(id); noteOpened({ find }); } });
 editor.init();
 document.addEventListener('props:author', e => { if (store.get().ui.author !== e.detail) store.setUi({ author: e.detail }); });
 
@@ -101,6 +105,14 @@ document.getElementById('btn-export').onclick = () => {
 };
 
 // ---------- global shortcuts ----------
+// Ctrl/Cmd+Space opens search. Capture phase so the editor can't swallow it. Ctrl/Cmd+K does the same: on a Mac,
+// Cmd+Space is normally taken by Spotlight and never reaches the page.
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.code === 'Space' || e.code === 'KeyK')) {
+    e.preventDefault(); e.stopPropagation();
+    searchPanel.toggle();
+  }
+}, true);
 document.addEventListener('keydown', e => {
   const mod = e.metaKey || e.ctrlKey;
   if (mod && e.altKey && e.code === 'KeyN') { e.preventDefault(); sidebar.newNote(null); }

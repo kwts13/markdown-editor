@@ -2,7 +2,7 @@ import * as store from './store.js';
 import { EditorState, Compartment, EditorView, keymap, drawSelection, placeholder, history, historyKeymap, defaultKeymap,
   indentMore, indentLess, markdown, markdownLanguage, markdownKeymap } from '../vendor/codemirror.js';
 import { liveRender } from './live.js';
-import { propertiesExtension, prepareDoc, startProperties } from './properties.js';
+import { propertiesExtension, prepareDoc, startProperties, frontmatter } from './properties.js';
 import { toggleWrap } from './format.js';
 import { selectionToolbar } from './toolbar.js';
 
@@ -62,6 +62,14 @@ export function load() {
     view.scrollDOM.scrollTop = 0;
   }
   if (document.activeElement !== titleInput) titleInput.value = n.name;
+}
+// Select the first occurrence of `text` in the note body (after any Properties block) and scroll to it.
+export function revealText(text) {
+  if (!text) return;
+  const doc = view.state.doc.toString(), fm = frontmatter(view.state.doc);
+  const from = fm ? fm.to : 0, at = doc.toLowerCase().indexOf(text.toLowerCase(), from);
+  if (at < 0) return;
+  view.dispatch({ selection: { anchor: at, head: at + text.length }, effects: EditorView.scrollIntoView(at, { y: 'center' }) });
 }
 export function focusEditor() {
   applyMode();
