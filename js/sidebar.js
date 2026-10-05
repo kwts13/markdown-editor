@@ -30,6 +30,7 @@ export function init({ noteOpened }) {
   tree.addEventListener('dragleave', e => { if (!tree.contains(e.relatedTarget)) clearDrop(); });
   tree.addEventListener('drop', onDrop);
   tree.addEventListener('dragend', () => { dragged = null; clearDrop(); });
+  document.getElementById('btn-sort').onclick = openSortMenu;
   document.getElementById('btn-new-note').onclick = () => newNote(selectedFolderId);
   document.getElementById('btn-new-folder').onclick = () => newFolder(selectedFolderId);
   render();
@@ -50,8 +51,28 @@ function setFocused(id, focus = true) {
   if (focus) liOf(id)?.focus();
 }
 
+// ---------- sorting ----------
+const SORT_LABELS = {
+  'name-asc': 'Name (A to Z)', 'name-desc': 'Name (Z to A)',
+  'modified-desc': 'Modified (newest first)', 'modified-asc': 'Modified (oldest first)',
+  'created-desc': 'Created (newest first)', 'created-asc': 'Created (oldest first)',
+  'manual': 'Manual order',
+};
+function openSortMenu() {
+  const btn = document.getElementById('btn-sort'), cur = store.get().ui.sortBy;
+  const r = btn.getBoundingClientRect();
+  const items = store.SORT_MODES.map(m => ({ label: SORT_LABELS[m], hint: m === cur ? '\u2713' : '', action: () => store.setSort(m) }));
+  items.splice(store.SORT_MODES.indexOf('manual'), 0, { sep: true });
+  showMenu(r.left, r.bottom + 4, items);
+}
+function updateSortButton() {
+  const b = document.getElementById('btn-sort'), cur = store.get().ui.sortBy;
+  b.title = `Sort notes (${SORT_LABELS[cur]})`; b.setAttribute('aria-label', `Sort notes, currently ${SORT_LABELS[cur]}`);
+}
+
 // ---------- render ----------
 function render() {
+  updateSortButton();
   const hadFocus = treeHasFocus() && !renamingId;
   const st = store.get();
   const expanded = new Set(st.ui.expanded);
@@ -260,6 +281,14 @@ function onKey(e) {
   const i = items.indexOf(li);
   const open = kind === 'folder' && li.getAttribute('aria-expanded') === 'true';
   const go = x => { if (x) setFocused(x.dataset.id, true); e.preventDefault(); };
+  if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {   // Alt+Up/Down: move among siblings
+    e.preventDefault();
+    const it = itemOf(id), parentId = (kind === 'folder' ? it.parentId : it.folderId) || null;
+    const sibs = kind === 'folder' ? store.childFolders(parentId) : store.childNotes(parentId);
+    const k = sibs.findIndex(x => x.id === id), ref = sibs[k + (e.key === 'ArrowUp' ? -1 : 1)];
+    if (ref) { doReorder(kind, id, parentId, ref.id, e.key === 'ArrowDown'); setFocused(id, true); }
+    return;
+  }
   switch (e.key) {
     case 'ArrowDown': return go(items[i + 1]);
     case 'ArrowUp': return go(items[i - 1]);
@@ -307,10 +336,27 @@ function dropTargetFor(e) {
 }
 function clearDrop() {
   tree.classList.remove('drop-root');
-  tree.querySelectorAll('.drop-target').forEach(x => x.classList.remove('drop-target'));
+  tree.querySelectorAll('.drop-target, .drop-before, .drop-after').forEach(x => x.classList.remove('drop-target', 'drop-before', 'drop-after'));
+}
+// Dropping near the top/bottom edge of a sibling reorders; the middle of a folder still moves into it.
+function reorderTarget(e) {
+  if (!dragged) return null;
+  const li = e.target.closest?.('li[role=treeitem]');
+  if (!li || li.dataset.id === dragged.id || li.dataset.kind !== dragged.kind) return null;
+  const item = itemOf(li.dataset.id), parentId = (li.dataset.kind === 'folder' ? item.parentId : item.folderId) || null;
+  if (dragged.kind === 'folder' && parentId && (parentId === dragged.id || store.isDescendant(parentId, dragged.id))) return null;
+  const row = li.querySelector('.row'), r = row.getBoundingClientRect(), y = (e.clientY - r.top) / r.height;
+  const isFolder = li.dataset.kind === 'folder', openFolder = isFolder && li.getAttribute('aria-expanded') === 'true';
+  const pos = isFolder ? (y < 0.28 ? 'before' : y > 0.72 && !openFolder ? 'after' : null) : (y < 0.5 ? 'before' : 'after');
+  if (!pos) return null;
+  const cur = itemOf(dragged.id), curParent = (dragged.kind === 'folder' ? cur.parentId : cur.folderId) || null;
+  if (store.get().ui.sortBy !== 'manual' && curParent !== parentId) return null;   // cross-folder drops stay plain moves unless ordering is manual
+  return { row, pos, parentId, refId: li.dataset.id };
 }
 function onDragOver(e) {
   if (!dragged) return;
+  const rt = reorderTarget(e);
+  if (rt) { clearDrop(); e.preventDefault(); e.dataTransfer.dropEffect = 'move'; rt.row.classList.add(rt.pos === 'before' ? 'drop-before' : 'drop-after'); return; }
   const t = dropTargetFor(e);
   clearDrop();
   if (!store.get().folders[dragged.id] && !store.get().notes[dragged.id]) return;
@@ -318,9 +364,18 @@ function onDragOver(e) {
   e.preventDefault(); e.dataTransfer.dropEffect = 'move';
   if (t.li) t.li.querySelector('.row').classList.add('drop-target'); else tree.classList.add('drop-root');
 }
+function doReorder(kind, id, parentId, refId, after) {
+  const wasManual = store.get().ui.sortBy === 'manual';
+  const r = store.reorder(kind, id, parentId, refId, after);
+  if (!r.ok) toast(r.error);
+  else if (r.renamed) toast(`Name already taken there; renamed to "${r.renamed}".`);
+  else if (!wasManual) toast('Switched to manual order.');
+}
 function onDrop(e) {
   if (!dragged) return;
   e.preventDefault();
+  const rt = reorderTarget(e);
+  if (rt) { const d = dragged; dragged = null; clearDrop(); doReorder(d.kind, d.id, rt.parentId, rt.refId, rt.pos === 'after'); setFocused(d.id, false); return; }
   const t = dropTargetFor(e);
   const d = dragged; dragged = null; clearDrop();
   if (store.canMove(d.kind, d.id, t.folderId)) doMove(d.kind, d.id, t.folderId);

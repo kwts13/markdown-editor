@@ -3,7 +3,7 @@ import * as storage from './storage.js';
 
 export const MAX_NAME = 100;
 const listeners = new Set();
-let state = { folders: {}, notes: {}, ui: { openNoteId: null, expanded: [], sidebarWidth: 280, sidebarCollapsed: false, viewMode: 'edit', author: '' } };
+let state = { folders: {}, notes: {}, ui: { openNoteId: null, expanded: [], sidebarWidth: 280, sidebarCollapsed: false, viewMode: 'edit', author: '', sortBy: 'name-asc' } };
 let saveTimer = null;
 let dirty = false;
 let saveError = null;
@@ -35,18 +35,20 @@ export function init() {
   if (data) {
     const folders = {}, notes = {};
     for (const [id, f] of Object.entries(data.folders)) {
-      if (f && typeof f.name === 'string') folders[id] = { id, name: f.name, parentId: f.parentId || null };
+      if (f && typeof f.name === 'string') folders[id] = { id, name: f.name, parentId: f.parentId || null, createdAt: f.createdAt || 0, order: Number.isFinite(f.order) ? f.order : undefined };
     }
     for (const f of Object.values(folders)) if (f.parentId && !folders[f.parentId]) f.parentId = null;
     for (const [id, n] of Object.entries(data.notes)) {
       if (n && typeof n.name === 'string') {
         notes[id] = { id, name: n.name, folderId: n.folderId && folders[n.folderId] ? n.folderId : null,
-          content: typeof n.content === 'string' ? n.content : '', updatedAt: n.updatedAt || 0 };
+          content: typeof n.content === 'string' ? n.content : '', updatedAt: n.updatedAt || 0,
+          createdAt: n.createdAt || n.updatedAt || 0, order: Number.isFinite(n.order) ? n.order : undefined };
       }
     }
     const ui = { ...state.ui, ...(data.ui || {}) };
     ui.expanded = (ui.expanded || []).filter(id => folders[id]);
     if (!['edit', 'read'].includes(ui.viewMode)) ui.viewMode = 'edit';
+    if (!SORT_MODES.includes(ui.sortBy)) ui.sortBy = 'name-asc';
     state = { folders, notes, ui };
     // AC-2: discard untouched empty default-named notes
     for (const n of Object.values(state.notes)) {
@@ -77,13 +79,91 @@ export function flush() { if (dirty) persistNow(); }
 export const isDirty = () => dirty;
 
 // ---------- queries ----------
+export const SORT_MODES = ['name-asc', 'name-desc', 'modified-desc', 'modified-asc', 'created-desc', 'created-asc', 'manual'];
+const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true });
+function folderModified(f) {
+  let t = f.createdAt || 0;
+  for (const id of subtreeFolderIds(f.id)) for (const n of Object.values(state.notes)) if (n.folderId === id) t = Math.max(t, n.updatedAt || 0);
+  return t;
+}
+function comparator(kind) {
+  const mode = state.ui.sortBy || 'name-asc';
+  const by = (get, dir) => (a, b) => (dir * (get(a) - get(b))) || byName(a, b);
+  const modified = kind === 'folder' ? folderModified : n => n.updatedAt || 0;
+  const created = x => x.createdAt || x.updatedAt || 0;
+  switch (mode) {
+    case 'name-desc': return (a, b) => byName(b, a);
+    case 'modified-desc': return by(modified, -1);
+    case 'modified-asc': return by(modified, 1);
+    case 'created-desc': return by(created, -1);
+    case 'created-asc': return by(created, 1);
+    case 'manual': return (a, b) => ((a.order ?? Infinity) - (b.order ?? Infinity) || 0) || byName(a, b);
+    default: return byName;
+  }
+}
+// Folders are listed before notes; each group follows the chosen sort.
 export function childFolders(parentId) {
-  return Object.values(state.folders).filter(f => f.parentId === parentId).sort(byName);
+  return Object.values(state.folders).filter(f => f.parentId === parentId).sort(comparator('folder'));
 }
 export function childNotes(folderId) {
-  return Object.values(state.notes).filter(n => n.folderId === folderId).sort(byName);
+  return Object.values(state.notes).filter(n => n.folderId === folderId).sort(comparator('note'));
 }
-const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true });
+
+// ---------- manual order ----------
+const siblings = (kind, parentId) => (kind === 'folder' ? Object.values(state.folders).filter(f => f.parentId === parentId)
+  : Object.values(state.notes).filter(n => n.folderId === parentId));
+const groupParents = () => [null, ...Object.keys(state.folders)];
+// order for an item added to a group: only when the whole group is already ordered (otherwise seedManual handles it later)
+const orderForNew = (kind, parentId, exceptId) => (siblings(kind, parentId).filter(x => x.id !== exceptId).every(x => x.order !== undefined) ? nextOrder(kind, parentId, exceptId) : undefined);
+const nextOrder = (kind, parentId, exceptId) => 1 + Math.max(-1, ...siblings(kind, parentId).filter(x => x.id !== exceptId).map(x => x.order ?? -1));
+
+// Give every item a manual position. Brand-new orders start from what is currently shown, so switching
+// to Manual keeps the list looking the same; items that already have a position are left alone.
+function seedManual() {
+  for (const parentId of groupParents()) {
+    for (const kind of ['folder', 'note']) {
+      const list = siblings(kind, parentId);
+      const missing = list.filter(x => x.order === undefined);
+      if (!missing.length) continue;
+      const anySet = list.some(x => x.order !== undefined);
+      const shown = (kind === 'folder' ? childFolders(parentId) : childNotes(parentId));
+      if (!anySet) shown.forEach((x, i) => { x.order = i; });
+      else {
+        let n = nextOrder(kind, parentId);
+        missing.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach(x => { x.order = n++; });
+      }
+    }
+  }
+}
+export function setSort(mode) {
+  if (!SORT_MODES.includes(mode)) return;
+  if (mode === 'manual') seedManual();
+  state.ui.sortBy = mode;
+  schedule(); emit('tree'); emit('ui');
+}
+// Place an item among its siblings: before/after refId (a sibling of the same kind), or at the end when refId is null.
+// Moving into another folder also renames on a name clash, like move().
+export function reorder(kind, id, parentId, refId, after = false) {
+  parentId = parentId || null;
+  const item = kind === 'folder' ? state.folders[id] : state.notes[id];
+  if (!item) return { ok: false, error: 'Nothing to move.' };
+  if (kind === 'folder' && parentId && isDescendant(parentId, id)) return { ok: false, error: 'A folder cannot be moved into itself or its subfolders.' };
+  if (state.ui.sortBy !== 'manual') { seedManual(); state.ui.sortBy = 'manual'; }
+  const key = kind === 'folder' ? 'parentId' : 'folderId';
+  const oldName = item.name;
+  if ((item[key] || null) !== parentId) {
+    item[key] = parentId;
+    item.name = uniqueName(kind, parentId, item.name, id);
+    if (parentId) reveal(parentId);
+  }
+  const list = siblings(kind, parentId).filter(x => x.id !== id).sort(comparator(kind));
+  let at = refId ? list.findIndex(x => x.id === refId) : -1;
+  at = at < 0 ? list.length : at + (after ? 1 : 0);
+  list.splice(at, 0, item);
+  list.forEach((x, i) => { x.order = i; });
+  schedule(); emit('tree'); emit('ui');
+  return { ok: true, renamed: item.name !== oldName ? item.name : null };
+}
 
 export function isDescendant(folderId, ancestorId) {
   let cur = folderId;
@@ -135,14 +215,14 @@ export function validateName(kind, id, raw) {
 // ---------- mutations ----------
 export function createNote(folderId = null, opts = {}) {
   const id = uid();
-  state.notes[id] = { id, name: uniqueName('note', folderId, 'Untitled'), folderId, content: defaultContent(), updatedAt: Date.now() };
+  state.notes[id] = { id, name: uniqueName('note', folderId, 'Untitled'), folderId, content: defaultContent(), updatedAt: Date.now(), createdAt: Date.now(), order: orderForNew('note', folderId) };
   if (folderId) reveal(folderId);
   if (!opts.silent) { state.ui.openNoteId = id; if (state.ui.viewMode === 'read') state.ui.viewMode = 'edit'; schedule(); emit('tree'); emit('open'); }
   return id;
 }
 export function createFolder(parentId = null) {
   const id = uid();
-  state.folders[id] = { id, name: uniqueName('folder', parentId, 'New folder'), parentId };
+  state.folders[id] = { id, name: uniqueName('folder', parentId, 'New folder'), parentId, createdAt: Date.now(), order: orderForNew('folder', parentId) };
   if (parentId) reveal(parentId);
   schedule(); emit('tree');
   return id;
@@ -169,6 +249,7 @@ export function move(kind, id, targetFolderId) {
   const old = item.name;
   if (kind === 'folder') item.parentId = targetFolderId; else item.folderId = targetFolderId;
   item.name = uniqueName(kind, targetFolderId, item.name, id);
+  item.order = orderForNew(kind, targetFolderId, id);
   if (targetFolderId) reveal(targetFolderId);
   schedule(); emit('tree');
   return { ok: true, renamed: item.name !== old ? item.name : null };
