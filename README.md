@@ -21,6 +21,7 @@ ES modules need http(s), so serve the folder (opening index.html via file:// wil
 - `js/search.js` search logic (names, text, properties; `key:value` and "phrases") and `js/searchpanel.js`, the Ctrl/Cmd+Space overlay
 - `js/slash.js` the `/` command menu (`/code /table /callout /details /toc /image /video /todo-list /link`), `js/suggest.js` its popup (also used for `[[` completion), `js/wikilinks.js` `[[wikilink]]` helpers
 - `js/blocks.js` editing helpers for plain-text blocks: one-Enter exit from quotes/callouts, table Tab/Shift+Tab/Enter
+- `js/tables.js` pipe tables rendered as editable tables (cells show inline markdown; edits rewrite the markdown)
 - `js/live.js` live-render extension: styles markdown in place, hides markers except at the caret
 - `js/ui.js` toast, dialogs, menu; `js/app.js` wiring
 - `vendor/` a CodeMirror 6 bundle (`codemirror.js`, built once with esbuild from `@codemirror/{state,view,commands,language,lang-markdown}`; local, works offline)
@@ -38,6 +39,8 @@ Slash commands: type `/` at the start of a line (or after a space) to insert a c
 Tables: Tab / Shift+Tab move between cells (Tab in the last cell adds a row), Enter goes to the same cell in the next row (on an empty last row it leaves the table). Enter on an empty `>` line leaves a quote or callout. Properties: Up arrow from the first body line (or Ctrl/Cmd+Alt+P) moves into the panel, Esc returns to the note, Ctrl/Cmd+Enter in a field adds a row; Backspace at the start of the first body line never merges into the panel. Ctrl/Cmd+Alt+[ folds or unfolds the `<details>` section at the caret (or focus the chevron and press Enter). Videos: the pencil in a player's corner (or the padding around it) reveals the link for editing.
 
 Back and forward arrows at the top left of the note step through the notes you've opened (including by following links) this session. A `/details` section is folded or expanded with its chevron; the state is saved in the note as `<details>` (folded) or `<details open>`, so it survives reloads and exports.
+
+Tables: a markdown table renders as a real table; click a cell (or arrow down into it) to edit, Tab/Shift+Tab move between cells and add a row at the end, Enter/arrows move down/up, and the strip under the table adds/removes rows and columns, sets alignment, or shows the markdown source.
 
 Ctrl/Cmd+Alt+N new note, Ctrl/Cmd+E edit/read, Ctrl/Cmd+B / I bold / italic, Ctrl/Cmd+\ toggle sidebar, F2 rename, Delete delete, Shift+F10 / context-menu key for menu, Esc then Tab leaves the editor.
 
