@@ -5,11 +5,27 @@ import { Decoration, ViewPlugin, WidgetType, EditorView, syntaxTree } from '../v
 const hide = Decoration.replace({});
 const lineDeco = cls => Decoration.line({ attributes: { class: cls } });
 const markDeco = (cls, attrs) => Decoration.mark({ class: cls, attributes: attrs });
+// Properties: a block at the very top of the note fenced by --- lines (YAML front matter).
+// Only counted when the body looks like properties, so a stray later "---" divider isn't swallowed.
+const PROP_LINE = /^(\s*$|[^\s:#][^:]*:(\s.*)?$|\s+\S.*|-\s.*|#.*)/;
+export function frontmatter(doc) {
+  if (doc.lines < 2 || doc.line(1).text.trimEnd() !== '---') return null;
+  for (let n = 2; n <= doc.lines; n++) {
+    const t = doc.line(n).text.trimEnd();
+    if (t === '---' || t === '...') return { first: 1, last: n, from: 0, to: doc.line(n).to };
+    if (!PROP_LINE.test(t)) return null;
+  }
+  return null;
+}
+
 const SAFE_IMG = /^(https?:|data:image\/(png|jpe?g|gif|webp|svg\+xml);)/i;
 
 class Widget extends WidgetType {
   constructor(key) { super(); this.key = key; }
   eq(o) { return o.constructor === this.constructor && o.key === this.key; }
+}
+class PropsLabel extends Widget {
+  toDOM() { const s = document.createElement('span'); s.className = 'cm-prop-label'; s.textContent = 'Properties'; return s; }
 }
 class BulletWidget extends Widget {
   toDOM() { const s = document.createElement('span'); s.className = 'cm-bullet'; s.textContent = '•'; return s; }
@@ -55,11 +71,29 @@ function build(view) {
     out.push(hide.range(from, to < lineEnd && text(to, to + 1) === ' ' ? to + 1 : to));
   };
 
+  const fm = frontmatter(state.doc);
+  if (fm) {
+    const open = touches(fm.from, fm.to);
+    for (let l = fm.first; l <= fm.last; l++) {
+      const line = state.doc.line(l);
+      const top = l === fm.first, bottom = l === fm.last;
+      out.push(lineDeco('cm-prop' + (top ? ' cm-prop-top' : '') + (bottom ? ' cm-prop-bottom' : '') +
+        ((top || bottom) && open ? ' cm-prop-fence' : '') + (bottom && !open ? ' cm-prop-collapsed' : '')).range(line.from));
+      if (top || bottom) {
+        if (!open && line.from < line.to) out.push((top ? Decoration.replace({ widget: new PropsLabel('p') }) : hide).range(line.from, line.to));
+      } else {
+        const m = /^([^\s:#-][^:]*):(?=\s|$)/.exec(line.text);
+        if (m) out.push(markDeco('cm-prop-key').range(line.from, line.from + m[1].length));
+      }
+    }
+  }
+
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(state).iterate({
       from, to,
       enter(n) {
         const { name } = n;
+        if (fm && n.from < fm.to && name !== 'Document') return false;   // handled as properties above
         const parent = n.node.parent;
         let m;
         if ((m = /^ATXHeading([1-6])$/.exec(name))) {
