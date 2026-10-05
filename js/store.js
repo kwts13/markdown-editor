@@ -3,7 +3,7 @@ import * as storage from './storage.js';
 
 export const MAX_NAME = 100;
 const listeners = new Set();
-let state = { folders: {}, notes: {}, ui: { openNoteId: null, expanded: [], sidebarWidth: 280, sidebarCollapsed: false, viewMode: 'edit', author: '', sortBy: 'name-asc' } };
+let state = { folders: {}, notes: {}, ui: { openNoteId: null, expanded: [], sidebarWidth: 280, sidebarCollapsed: false, viewMode: 'edit', author: '', sortBy: 'name-asc', foldersFirst: false } };
 let saveTimer = null;
 let dirty = false;
 let saveError = null;
@@ -51,6 +51,11 @@ export function init() {
     if (!SORT_MODES.includes(ui.sortBy)) ui.sortBy = 'name-asc';
     state = { folders, notes, ui };
     if (!ui.unifiedOrder) mergeLegacyOrders();
+    for (const f of Object.values(state.folders)) {   // folders from older versions have no creation time: use their oldest note
+      if (f.createdAt) continue;
+      const times = Object.values(state.notes).filter(n => subtreeFolderIds(f.id).includes(n.folderId)).map(n => n.createdAt || n.updatedAt || 0).filter(Boolean);
+      f.createdAt = times.length ? Math.min(...times) : Date.now();
+    }
     // AC-2: discard untouched empty default-named notes
     for (const n of Object.values(state.notes)) {
       if (isUntouched(n)) delete state.notes[n.id];
@@ -120,8 +125,14 @@ const nextOrder = (parentId, exceptId) => 1 + Math.max(-1, ...allSiblings(parent
 const orderForNew = (parentId, exceptId) => (allSiblings(parentId).filter(x => x.id !== exceptId).every(x => x.order !== undefined) ? nextOrder(parentId, exceptId) : undefined);
 // What the sidebar shows inside a folder: one mixed list in Manual mode, otherwise folders first, then notes.
 export function children(parentId) {
-  if (state.ui.sortBy === 'manual') return allSiblings(parentId).sort(comparator('note'));
-  return [...childFolders(parentId), ...childNotes(parentId)];
+  const items = allSiblings(parentId), mode = state.ui.sortBy || 'name-asc';
+  if (mode === 'manual') return items.sort(comparator('note'));
+  // every sort applies to folders and notes alike; "Folders first" just groups the folders on top
+  const isFolder = x => !!state.folders[x.id];
+  const key = new Map(items.map(x => [x.id, mode.startsWith('modified') ? (isFolder(x) ? folderModified(x) : x.updatedAt || 0) : x.createdAt || x.updatedAt || 0]));
+  const dir = mode.endsWith('-desc') ? -1 : 1;
+  items.sort(mode.startsWith('name') ? (a, b) => dir * byName(a, b) : (a, b) => (dir * (key.get(a.id) - key.get(b.id))) || byName(a, b));
+  return state.ui.foldersFirst ? [...items.filter(isFolder), ...items.filter(x => !isFolder(x))] : items;
 }
 
 // Give every item a manual position. Brand-new orders start from what is currently shown, so switching
@@ -148,6 +159,10 @@ function mergeLegacyOrders() {
     [...folders, ...notes].forEach((x, i) => { x.order = i; });
   }
   state.ui.unifiedOrder = true;
+}
+export function setFoldersFirst(on) {
+  state.ui.foldersFirst = !!on;
+  schedule(); emit('tree'); emit('ui');
 }
 export function setSort(mode) {
   if (!SORT_MODES.includes(mode)) return;

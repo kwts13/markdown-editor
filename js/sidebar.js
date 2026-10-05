@@ -63,6 +63,8 @@ function openSortMenu() {
   const r = btn.getBoundingClientRect();
   const items = store.SORT_MODES.map(m => ({ label: SORT_LABELS[m], hint: m === cur ? '\u2713' : '', action: () => store.setSort(m) }));
   items.splice(store.SORT_MODES.indexOf('manual'), 0, { sep: true });
+  const ff = store.get().ui.foldersFirst;
+  items.push({ sep: true }, { label: 'Folders first', hint: ff ? '\u2713' : '', action: () => store.setFoldersFirst(!ff) });
   showMenu(r.left, r.bottom + 4, items);
 }
 function updateSortButton() {
