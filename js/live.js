@@ -30,6 +30,7 @@ class CheckWidget extends Widget {
     box.addEventListener('mousedown', e => e.preventDefault());
     box.addEventListener('click', e => {
       e.preventDefault();
+      if (!view.state.facet(EditorView.editable)) return;   // Read mode: nothing may change
       const pos = view.posAtDOM(box);
       const mark = view.state.doc.sliceString(pos, pos + 3);
       if (!/^\[[ xX]\]$/.test(mark)) return;
@@ -41,11 +42,29 @@ class CheckWidget extends Widget {
 }
 class ImageWidget extends Widget {
   constructor(url, alt) { super(url + '\n' + alt); this.url = url; this.alt = alt; }
-  toDOM() {
+  toDOM(view) {
+    const wrap = document.createElement('span'); wrap.className = 'cm-img-wrap';
     const img = document.createElement('img');
     img.className = 'cm-img'; img.src = this.url; img.alt = this.alt; img.loading = 'lazy';
-    return img;
+    // a broken image would be an invisible 0x0 gap: show what it was meant to be instead
+    img.addEventListener('error', () => {
+      const ph = document.createElement('span'); ph.className = 'cm-img-broken';
+      ph.textContent = '\u26A0 Image not found: ' + (this.alt || this.url);
+      ph.title = this.url;
+      img.replaceWith(ph);
+    });
+    wrap.append(img);
+    wrap.addEventListener('mousedown', e => { if (e.button === 0) editSource(view, wrap, e); });
+    return wrap;
   }
+  ignoreEvent() { return true; }
+}
+// Put the caret on a rendered widget's source so the raw markdown shows and can be edited.
+function editSource(view, dom, e) {
+  if (!view.state.facet(EditorView.editable)) return;
+  e.preventDefault();
+  view.dispatch({ selection: { anchor: view.posAtDOM(dom) } });
+  view.focus();
 }
 
 // ---- videos: ![](youtube / vimeo / video-file url) ----
@@ -58,18 +77,27 @@ function videoEmbed(url) {
 }
 class VideoWidget extends Widget {
   constructor(v) { super(v.kind + ' ' + v.src); this.v = v; }
-  toDOM() {
+  toDOM(view) {
     const wrap = document.createElement('div'); wrap.className = 'cm-video';
+    const box = document.createElement('div'); box.className = 'cm-video-box';
+    // the pencil and the padding around the player put the caret on the source; clicks inside the player go to the player
+    const edit = document.createElement('button');
+    edit.type = 'button'; edit.className = 'cm-video-edit'; edit.title = 'Edit the video link'; edit.setAttribute('aria-label', 'Edit the video link');
+    edit.textContent = '\u270E';
+    edit.addEventListener('mousedown', e => editSource(view, wrap, e));
+    wrap.addEventListener('mousedown', e => { if (e.target === wrap && e.button === 0) editSource(view, wrap, e); });
+    wrap.addEventListener('keydown', e => { if (e.key === 'Escape') view.focus(); });   // works for <video>; a cross-origin iframe never sees keys
     if (this.v.kind === 'iframe') {
       const f = document.createElement('iframe');
-      f.src = this.v.src; f.loading = 'lazy'; f.title = 'Embedded video'; f.allowFullscreen = true;
+      f.src = this.v.src; f.loading = 'lazy'; f.title = 'Embedded video';
       f.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen';
       f.referrerPolicy = 'strict-origin-when-cross-origin';
       f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation allow-popups');
-      wrap.append(f);
+      box.append(f);
     } else {
-      const v = document.createElement('video'); v.src = this.v.src; v.controls = true; v.preload = 'metadata'; wrap.append(v);
+      const v = document.createElement('video'); v.src = this.v.src; v.controls = true; v.preload = 'metadata'; box.append(v);
     }
+    box.append(edit); wrap.append(box);
     return wrap;
   }
   ignoreEvent() { return true; }
@@ -110,8 +138,10 @@ class FoldedWidget extends Widget { toDOM() { const d = document.createElement('
 class DetailsToggle extends Widget {
   toDOM(view) {
     const b = document.createElement('span'); b.className = 'cm-details-toggle' + (this.key ? ' folded' : ''); b.textContent = '\u25B8';
-    b.setAttribute('role', 'button'); b.setAttribute('aria-label', this.key ? 'Expand section' : 'Collapse section');
-    b.addEventListener('mousedown', e => { e.preventDefault(); view.dispatch({ effects: toggleFold.of(view.state.doc.lineAt(view.posAtDOM(b)).from) }); });
+    b.setAttribute('role', 'button'); b.setAttribute('aria-label', this.key ? 'Expand section' : 'Collapse section'); b.tabIndex = 0;
+    const toggle = () => view.dispatch({ effects: toggleFold.of(view.state.doc.lineAt(view.posAtDOM(b)).from) });
+    b.addEventListener('mousedown', e => { e.preventDefault(); toggle(); });
+    b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } else if (e.key === 'Escape') view.focus(); });
     return b;
   }
   ignoreEvent() { return true; }
@@ -126,16 +156,33 @@ function foldDecos(state, folds) {
   }
   return Decoration.set(out, true);
 }
+const setFolds = StateEffect.define();   // restore a note's folds when it is reopened
 const foldField = StateField.define({
   create: () => ({ folds: [], decos: Decoration.none }),
   update(v, tr) {
     let folds = tr.docChanged ? v.folds.map(p => tr.changes.mapPos(p, -1)) : v.folds;
-    for (const e of tr.effects) if (e.is(toggleFold)) folds = folds.includes(e.value) ? folds.filter(p => p !== e.value) : [...folds, e.value];
+    for (const e of tr.effects) {
+      if (e.is(toggleFold)) folds = folds.includes(e.value) ? folds.filter(p => p !== e.value) : [...folds, e.value];
+      else if (e.is(setFolds)) {   // keep only positions that are still a <summary> line
+        const sums = new Set(detailsBlocks(tr.state).filter(b => b.summary).map(b => tr.state.doc.line(b.summary).from));
+        folds = e.value.filter(p => sums.has(p));
+      }
+    }
     if (!tr.docChanged && folds === v.folds) return v;
     return { folds, decos: foldDecos(tr.state, folds) };
   },
   provide: f => [EditorView.decorations.from(f, v => v.decos), EditorView.atomicRanges.of(view => view.state.field(f).decos)],
 });
+export const getFolds = state => state.field(foldField, false)?.folds || [];
+export const restoreFolds = (state, folds) => (folds && folds.length ? state.update({ effects: setFolds.of(folds) }).state : state);
+// Keyboard fold/unfold of the <details> section that holds the caret (Ctrl/Cmd+Alt+[)
+export function toggleDetailsAtCaret(view) {
+  const doc = view.state.doc, ln = doc.lineAt(view.state.selection.main.head).number;
+  const b = detailsBlocks(view.state).filter(x => x.summary && x.open <= ln && ln <= x.close).pop();
+  if (!b) return false;
+  view.dispatch({ effects: toggleFold.of(doc.line(b.summary).from) });
+  return true;
+}
 
 function build(view) {
   const { state } = view;
@@ -301,7 +348,7 @@ function build(view) {
         if (!target || inCodeAt(state, start)) continue;
         const { note } = splitTarget(target);
         const unresolved = note && !store.resolveNote(target, openId);
-        const attrs = { 'data-wikilink': target };
+        const attrs = { 'data-wikilink': target, title: 'Click to open \u00B7 Alt+click to edit' };
         const cls = 'cm-wikilink' + (unresolved ? ' unresolved' : '');
         if (touches(start, end)) { out.push(markDeco(cls, attrs).range(start, end)); continue; }
         out.push(hide.range(start, start + 2), hide.range(end - 2, end));
@@ -314,17 +361,19 @@ function build(view) {
       }
     }
   }
-  return Decoration.set(out, true);
+  // only the hide/replace decorations are atomic; styling marks must stay editable
+  return { all: Decoration.set(out, true), atomic: Decoration.set(out.filter(r => r.value === hide || r.value.spec.widget), true) };
 }
 
 const plugin = ViewPlugin.fromClass(class {
-  constructor(view) { this.decorations = build(view); }
+  constructor(view) { this.set(build(view)); }
+  set(b) { this.decorations = b.all; this.atomic = b.atomic; }
   update(u) {
-    if (u.docChanged || u.selectionSet || u.viewportChanged || u.focusChanged || u.transactions.some(tr => tr.effects.some(e => e.is(toggleFold)))) this.decorations = build(u.view);
+    if (u.docChanged || u.selectionSet || u.viewportChanged || u.focusChanged || u.transactions.some(tr => tr.effects.some(e => e.is(toggleFold) || e.is(setFolds)))) this.set(build(u.view));
   }
 }, {
   decorations: v => v.decorations,
-  provide: p => EditorView.atomicRanges.of(v => v.plugin(p)?.decorations || Decoration.none),
+  provide: p => EditorView.atomicRanges.of(v => v.plugin(p)?.atomic || Decoration.none),
 });
 
 // Ctrl/Cmd+click opens a rendered link
@@ -339,15 +388,27 @@ const openLinks = EditorView.domEventHandlers({
   },
 });
 
-// Click a rendered [[wikilink]] to go to that note. While the caret is inside a link (raw [[ ]] showing) a click
-// just places the caret so the link can be edited.
+// Click a rendered [[wikilink]] to go to that note. The caret still lands in the link on mousedown (so a drag can
+// select text), and the note opens on mouseup if the mouse hardly moved. Alt+click, or a click while the caret is
+// already inside the link (raw [[ ]] showing), only places the caret so the link can be edited.
 const openWikilinks = EditorView.domEventHandlers({
   mousedown(e, view) {
     const a = e.target.closest && e.target.closest('[data-wikilink]');
     if (!a || e.button !== 0 || a.textContent.startsWith('[[')) return false;
-    e.preventDefault();
-    document.dispatchEvent(new CustomEvent('wikilink', { detail: { target: a.getAttribute('data-wikilink') } }));
-    return true;
+    if (e.altKey) {
+      const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+      if (pos != null) view.dispatch({ selection: { anchor: pos } });
+      view.focus(); e.preventDefault();
+      return true;
+    }
+    const target = a.getAttribute('data-wikilink'), x = e.clientX, y = e.clientY;
+    const up = ev => {
+      document.removeEventListener('mouseup', up, true);
+      if (Math.hypot(ev.clientX - x, ev.clientY - y) > 4 || !view.state.selection.main.empty) return;   // a drag-selection, not a click
+      document.dispatchEvent(new CustomEvent('wikilink', { detail: { target, readOnly: !view.state.facet(EditorView.editable) } }));
+    };
+    document.addEventListener('mouseup', up, true);
+    return false;
   },
 });
 
