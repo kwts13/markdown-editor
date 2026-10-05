@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Markdown Notes</title>
+<link rel="stylesheet" href="css/styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%237c5cff'/%3E%3Cpath d='M7 23V9h3l3 5 3-5h3v14h-3v-8l-3 5-3-5v8z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar" aria-label="Sidebar">
+    <div class="side-head">
+      <span class="brand">Markdown Notes</span>
+      <div class="side-actions">
+        <button id="btn-new-note" class="icon-btn" title="New note (Ctrl/Cmd+Alt+N)" aria-label="New note">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M11 3H5.5A1.5 1.5 0 0 0 4 4.5v11A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V8"/><path d="M14 2.5v5M11.5 5h5"/></svg></button>
+        <button id="btn-new-folder" class="icon-btn" title="New folder" aria-label="New folder">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3.5l1.7 2H16a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 16H4a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M10 9v4M8 11h4"/></svg></button>
+        <button id="btn-collapse" class="icon-btn" title="Collapse sidebar (Ctrl/Cmd+\)" aria-label="Collapse sidebar" aria-expanded="true">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="14" height="13" rx="2"/><path d="M8 3.5v13"/></svg></button>
+      </div>
+    </div>
+    <nav id="tree" aria-label="Note tree"></nav>
+    <div class="side-foot">Notes live only in this browser. Clearing site data deletes them.</div>
+  </aside>
+  <div id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" aria-valuemin="180" aria-valuemax="600" tabindex="0"></div>
+  <main id="main">
+    <header class="topbar">
+      <button id="btn-expand" class="icon-btn" title="Show sidebar (Ctrl/Cmd+\)" aria-label="Show sidebar" hidden>
+        <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="14" height="13" rx="2"/><path d="M8 3.5v13"/></svg></button>
+      <input id="note-title" class="title" aria-label="Note name" maxlength="200" spellcheck="false">
+      <span id="save-status" class="status" role="status" aria-live="polite">Saved</span>
+      <div class="seg" role="group" aria-label="View mode">
+        <button data-mode-btn="edit" title="Edit (Ctrl/Cmd+E toggles)" aria-pressed="true">Edit</button>
+        <button data-mode-btn="split" title="Side by side" aria-pressed="false">Split</button>
+        <button data-mode-btn="preview" title="Preview (Ctrl/Cmd+E toggles)" aria-pressed="false">Preview</button>
+      </div>
+    </header>
+    <div id="banner" role="alert" hidden></div>
+    <div id="panes" data-mode="edit">
+      <textarea id="editor" aria-label="Markdown editor" placeholder="Start typing in markdown..." spellcheck="true"></textarea>
+      <article id="preview" class="markdown" tabindex="0" aria-label="Preview"></article>
+    </div>
+  </main>
+</div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
