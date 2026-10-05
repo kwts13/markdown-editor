@@ -332,3 +332,11 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
 .tab.drop-before::before, .tab.drop-after::after { content: ''; position: absolute; top: 4px; bottom: 2px; width: 2px; background: var(--accent); border-radius: 2px; }
 .tab.drop-before::before { left: -2px; } .tab.drop-after::after { right: -2px; }
 #tab-new { flex: none; margin-bottom: 4px; }
+
+/* ---- theme bloom: the new theme is revealed through a growing, soft-edged circle (see app.js) ---- */
+@property --bloom-r { syntax: '<length>'; inherits: false; initial-value: 0px; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) {
+  -webkit-mask-image: radial-gradient(circle at var(--bloom-x, 0px) var(--bloom-y, 0px), #000 calc(var(--bloom-r) - 90px), transparent var(--bloom-r));
+  mask-image: radial-gradient(circle at var(--bloom-x, 0px) var(--bloom-y, 0px), #000 calc(var(--bloom-r) - 90px), transparent var(--bloom-r));
+}
