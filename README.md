@@ -26,6 +26,8 @@ Notes always render live as you type. **Edit** mode allows changes; **Read** mod
 
 ## Shortcuts
 
+Sidebar sorting: the arrows button sorts by name, modified or created date, or Manual order. Drag a note or folder near the edge of a sibling to place it there (this switches to Manual); drop on the middle of a folder to move into it. Alt+Up/Down reorders the focused item.
+
 Ctrl/Cmd+Alt+N new note, Ctrl/Cmd+E edit/read, Ctrl/Cmd+B / I bold / italic, Ctrl/Cmd+\ toggle sidebar, F2 rename, Delete delete, Shift+F10 / context-menu key for menu, Esc then Tab leaves the editor.
 
 Data is stored only in this browser (localStorage). Clearing site data deletes it.
