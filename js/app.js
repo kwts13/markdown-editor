@@ -78,7 +78,8 @@ document.getElementById('btn-theme').onclick = e => {
   const reach = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + BLOOM_FEATHER;   // far enough to cover the farthest corner
   const t = bloom = document.startViewTransition(swap);
   t.ready.then(() => root.animate({ '--bloom-r': ['0px', reach + 'px'] },
-    { duration: BLOOM_MS, easing: 'cubic-bezier(.22, .61, .36, 1)', pseudoElement: '::view-transition-new(root)' })).catch(() => {});
+    { duration: BLOOM_MS, easing: 'cubic-bezier(.22, .61, .36, 1)', fill: 'forwards',   // hold the full reveal until the transition ends, or the mask snaps back to 0 for a frame (the "flash")
+      pseudoElement: '::view-transition-new(root)' })).catch(() => {});
   const done = () => { if (bloom === t) bloom = null; };
   t.finished.finally(done); setTimeout(done, BLOOM_MS + 500);   // belt and braces: never leave the button dead
 };
