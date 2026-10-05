@@ -15,6 +15,7 @@ sidebar.init({ noteOpened: ({ isNew } = {}) => {
   if (isNew) editor.focusTitle(); else editor.focusEditor();
 } });
 editor.init();
+document.addEventListener('props:author', e => { if (store.get().ui.author !== e.detail) store.setUi({ author: e.detail }); });
 
 // ---------- layout ----------
 function applyLayout() {

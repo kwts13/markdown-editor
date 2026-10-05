@@ -3,7 +3,7 @@ import * as storage from './storage.js';
 
 export const MAX_NAME = 100;
 const listeners = new Set();
-let state = { folders: {}, notes: {}, ui: { openNoteId: null, expanded: [], sidebarWidth: 280, sidebarCollapsed: false, viewMode: 'edit' } };
+let state = { folders: {}, notes: {}, ui: { openNoteId: null, expanded: [], sidebarWidth: 280, sidebarCollapsed: false, viewMode: 'edit', author: '' } };
 let saveTimer = null;
 let dirty = false;
 let saveError = null;
@@ -17,6 +17,17 @@ const emit = (type, detail) => listeners.forEach(fn => fn(type, detail));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
 
 const DEFAULT_RE = /^Untitled( \d+)?$/;
+const TEMPLATE_RE = /^---\ndate:[^\n]*\nauthor:[^\n]*\n---\n?$/;   // a note nobody has typed in yet
+const isUntouched = n => DEFAULT_RE.test(n.name) && (n.content === '' || TEMPLATE_RE.test(n.content));
+
+// Every new note starts with Properties: the creation date and the author (the name last entered, if any).
+function defaultContent() {
+  const d = new Date(), pad = x => String(x).padStart(2, '0');
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const author = (state.ui.author || '').trim();
+  const quoted = !author ? '' : /^[\w][\w .'-]*$/.test(author) && !/^(true|false|null|yes|no|on|off)$/i.test(author) && !/^[\d.-]+$/.test(author) ? ' ' + author : ' ' + JSON.stringify(author);
+  return `---\ndate: ${date}\nauthor:${quoted}\n---\n`;
+}
 
 export function init() {
   const { data, error, backedUp } = storage.load();
@@ -39,7 +50,7 @@ export function init() {
     state = { folders, notes, ui };
     // AC-2: discard untouched empty default-named notes
     for (const n of Object.values(state.notes)) {
-      if (n.content === '' && DEFAULT_RE.test(n.name)) delete state.notes[n.id];
+      if (isUntouched(n)) delete state.notes[n.id];
     }
   }
   const id = createNote(null, { silent: true });
@@ -124,7 +135,7 @@ export function validateName(kind, id, raw) {
 // ---------- mutations ----------
 export function createNote(folderId = null, opts = {}) {
   const id = uid();
-  state.notes[id] = { id, name: uniqueName('note', folderId, 'Untitled'), folderId, content: '', updatedAt: Date.now() };
+  state.notes[id] = { id, name: uniqueName('note', folderId, 'Untitled'), folderId, content: defaultContent(), updatedAt: Date.now() };
   if (folderId) reveal(folderId);
   if (!opts.silent) { state.ui.openNoteId = id; if (state.ui.viewMode === 'read') state.ui.viewMode = 'edit'; schedule(); emit('tree'); emit('open'); }
   return id;

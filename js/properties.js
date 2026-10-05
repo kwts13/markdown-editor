@@ -171,6 +171,8 @@ class PropsWidget extends WidgetType {
     const commit = () => {
       const text = serializeProps(rows);
       this.text = root.__text = text;
+      const author = rows.find(r => r.key.trim().toLowerCase() === 'author' && r.type === 'text');
+      if (author) document.dispatchEvent(new CustomEvent('props:author', { detail: author.value }));   // remembered as the default for new notes
       const fm = frontmatter(view.state.doc);
       if (fm && view.state.sliceDoc(0, fm.to) !== text) view.dispatch({ changes: { from: 0, to: fm.to, insert: text }, userEvent: 'input.properties' });
       refresh();
@@ -227,7 +229,7 @@ class PropsWidget extends WidgetType {
         inp.type = row.type === 'number' ? 'number' : row.type === 'date' ? 'date' : 'text';
         inp.value = row.value; inp.disabled = ro;
         inp.setAttribute('aria-label', row.key || 'value');
-        if (row.type === 'text') inp.placeholder = ro ? '' : 'Empty';
+        if (row.type === 'text') inp.placeholder = ro ? '' : row.key.trim().toLowerCase() === 'author' ? 'Your name' : 'Empty';
         inp.addEventListener('input', () => { row.value = inp.value; commit(); });
         inp.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); view.focus(); } });
         box.append(inp);
