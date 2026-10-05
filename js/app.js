@@ -86,6 +86,20 @@ window.addEventListener('beforeunload', store.flush);
 window.addEventListener('pagehide', store.flush);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') store.flush(); });
 
+// ---------- export ----------
+// The note's content already carries its YAML properties block, so the file is the note as plain markdown.
+document.getElementById('btn-export').onclick = () => {
+  const st = store.get(), n = st.notes[st.ui.openNoteId];
+  if (!n) return;
+  store.flush();
+  const name = (n.name || 'note').replace(/[\/\\:*?"<>|\u0000-\u001f]/g, '-').trim().replace(/^\.+/, '') || 'note';
+  const text = n.content.endsWith('\n') || n.content === '' ? n.content : n.content + '\n';
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: name + '.md' });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
 // ---------- global shortcuts ----------
 document.addEventListener('keydown', e => {
   const mod = e.metaKey || e.ctrlKey;
