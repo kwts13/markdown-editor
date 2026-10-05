@@ -77,9 +77,12 @@ document.getElementById('btn-theme').onclick = e => {
   root.style.setProperty('--bloom-x', x + 'px'); root.style.setProperty('--bloom-y', y + 'px');
   const reach = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + BLOOM_FEATHER;   // far enough to cover the farthest corner
   const t = bloom = document.startViewTransition(swap);
-  t.ready.then(() => root.animate({ '--bloom-r': ['0px', reach + 'px'] },
-    { duration: BLOOM_MS, easing: 'cubic-bezier(.22, .61, .36, 1)', fill: 'forwards',   // hold the full reveal until the transition ends, or the mask snaps back to 0 for a frame (the "flash")
-      pseudoElement: '::view-transition-new(root)' })).catch(() => {});
+  t.ready.then(() => {
+    const grow = root.animate({ '--bloom-r': ['0px', reach + 'px'] },
+      { duration: BLOOM_MS, easing: 'cubic-bezier(.22, .61, .36, 1)', fill: 'forwards',   // hold the full reveal until the transition ends, or the mask snaps back to 0 for a frame (the "flash")
+        pseudoElement: '::view-transition-new(root)' });
+    t.finished.finally(() => grow.cancel());   // a finished fill-forwards animation left on the root stops the NEXT transition from ever becoming ready
+  }).catch(() => {});
   const done = () => { if (bloom === t) bloom = null; };
   t.finished.finally(done); setTimeout(done, BLOOM_MS + 500);   // belt and braces: never leave the button dead
 };
