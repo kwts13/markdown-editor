@@ -77,7 +77,7 @@ li[aria-expanded="true"] > .row .chev { transform: rotate(90deg); }
 .btn.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
 
 #main { --gutter: max(24px, calc((100% - 780px) / 2)); grid-column: 3; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.topbar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.topbar { display: flex; align-items: center; justify-content: flex-start; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
 .cm-title-widget { padding: 20px 0 8px; }
 .note-title { display: block; width: 100%; font: 700 30px/1.25 var(--font-ui); color: var(--text); background: transparent; border: 0; border-radius: 4px; padding: 2px 0; margin: 0; outline: none; text-overflow: ellipsis; }
 .note-title::placeholder { color: var(--muted); font-weight: 600; }
@@ -292,7 +292,8 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
 }
 
 /* ---- back / forward ---- */
-.nav-btns { display: flex; gap: 2px; margin-right: auto; }
+.nav-btns { display: flex; gap: 2px; }
+.tb-divider { width: 1px; height: 18px; background: color-mix(in srgb, var(--muted) 45%, transparent); flex: none; }
 .nav-btns .icon-btn:disabled { opacity: .35; cursor: default; background: none; color: var(--muted); }
 
 /* ---- rendered tables ---- */
