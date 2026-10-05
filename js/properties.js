@@ -1,6 +1,7 @@
 // Properties: a YAML front-matter block at the very top of a note, edited through typed fields.
 // The note stays plain markdown; the panel is just a widget over the `---` ... `---` block.
 import { StateField, EditorState, EditorView, Decoration, WidgetType } from '../vendor/codemirror.js';
+import { toast } from './ui.js';
 
 // ---------- locating the block ----------
 // Only counted when the body looks like properties, so a stray later "---" divider isn't swallowed.
@@ -151,26 +152,19 @@ class PropsWidget extends WidgetType {
 
   toDOM(view) {
     const ro = this.ro, rows = this.rows;
-    const root = el('div', 'props');
-    root.__text = this.text; root.__ro = ro;
+    // wrap = the widget (its padding is the gap below; margins are invisible to CodeMirror's height map), root = the visible box
+    const wrap = el('div', 'props-wrap'), root = el('div', 'props');
+    wrap.__text = this.text; wrap.__ro = ro;
+    wrap.append(root);
     const head = el('div', 'props-head');
     head.append(el('span', 'props-title', 'Properties'));
-    if (!ro) {
-      const rm = el('button', 'props-remove', 'Remove'); rm.type = 'button'; rm.title = 'Remove all properties';
-      rm.addEventListener('click', () => {
-        const fm = frontmatter(view.state.doc);
-        if (fm) view.dispatch({ changes: { from: 0, to: Math.min(view.state.doc.length, fm.to + 1), insert: '' }, userEvent: 'delete' });
-        view.focus();
-      });
-      head.append(rm);
-    }
     const list = el('div', 'props-rows');
     const empty = el('div', 'props-empty', 'No properties yet');
     root.append(head, list, empty);
 
     const commit = () => {
       const text = serializeProps(rows);
-      this.text = root.__text = text;
+      this.text = wrap.__text = text;
       const author = rows.find(r => r.key.trim().toLowerCase() === 'author' && r.type === 'text');
       if (author) document.dispatchEvent(new CustomEvent('props:author', { detail: author.value }));   // remembered as the default for new notes
       const fm = frontmatter(view.state.doc);
@@ -187,6 +181,7 @@ class PropsWidget extends WidgetType {
       });
     };
 
+    let addRowRef = null;   // set below once the Add button exists
     const controlFor = row => {
       const box = el('div', 'props-value');
       if (row.type === 'checkbox') {
@@ -231,7 +226,10 @@ class PropsWidget extends WidgetType {
         inp.setAttribute('aria-label', row.key || 'value');
         if (row.type === 'text') inp.placeholder = ro ? '' : row.key.trim().toLowerCase() === 'author' ? 'Your name' : 'Empty';
         inp.addEventListener('input', () => { row.value = inp.value; commit(); });
-        inp.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); view.focus(); } });
+        inp.addEventListener('keydown', e => {
+          if ((e.key === 'Enter') && (e.metaKey || e.ctrlKey) && addRowRef) { e.preventDefault(); addRowRef(); }
+          else if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); view.focus(); }
+        });
         box.append(inp);
       }
       return box;
@@ -254,7 +252,7 @@ class PropsWidget extends WidgetType {
         typeBtn.innerHTML = TYPES[t].icon; typeBtn.title = 'Type: ' + TYPES[t].label;
         const nv = controlFor(row); value.replaceWith(nv); value = nv; commit();
       }));
-      r.append(typeBtn, key, value);
+      r.append(key, value, typeBtn);   // DOM (tab) order: name, value, type; the grid puts the type button first visually
       if (!ro) {
         const del = el('button', 'props-del', '×'); del.type = 'button'; del.title = 'Delete property'; del.setAttribute('aria-label', 'Delete property');
         del.addEventListener('click', () => { rows.splice(rows.indexOf(row), 1); r.remove(); commit(); });
@@ -272,12 +270,40 @@ class PropsWidget extends WidgetType {
         const r = rowEl(row); list.append(r); refresh();
         r.querySelector('.props-key').focus();
       };
-      add.addEventListener('click', addRow);
+      add.addEventListener('click', addRow); addRowRef = addRow;
       root.append(add);
+      const rm = el('button', 'props-remove', 'Remove'); rm.type = 'button'; rm.title = 'Remove all properties';   // last in tab order, not first
+      rm.addEventListener('click', () => {
+        const fm = frontmatter(view.state.doc);
+        if (fm) view.dispatch({ changes: { from: 0, to: Math.min(view.state.doc.length, fm.to + 1), insert: '' }, userEvent: 'delete' });
+        view.focus();
+        toast('Properties removed. Ctrl/Cmd+Z brings them back.');
+      });
+      root.append(rm);
       if (focusNewRow) { focusNewRow = false; if (!rows.length) setTimeout(addRow, 0); }
     }
     refresh();
-    return root;
+
+    // Keyboard and mouse hand-offs between the panel and the editor
+    const tabbables = () => [...root.querySelectorAll('button, input')].filter(x => !x.disabled && !x.hidden && x.tabIndex >= 0);
+    wrap.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); view.focus(); return; }
+      if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return;
+      const t = tabbables(), at = t.indexOf(document.activeElement);
+      if (at < 0 || !t.length) return;
+      if (!e.shiftKey && at === t.length - 1) { e.preventDefault(); view.focus(); }   // Tab out of the last control: back to the note
+      else if (e.shiftKey && at === 0) { e.preventDefault(); document.getElementById('note-title').focus(); }
+    });
+    // Clicking the panel's empty area would leave focus nowhere useful: go to the first field; the gap below goes to the note
+    wrap.addEventListener('mousedown', e => {
+      if (e.button !== 0 || e.target.closest('button, input, select, label')) return;
+      e.preventDefault();
+      const fm = frontmatter(view.state.doc);
+      if (e.target === wrap && fm) { view.dispatch({ selection: { anchor: Math.min(fm.to + 1, view.state.doc.length) } }); view.focus(); return; }
+      const first = tabbables()[0];
+      if (first && !ro) first.focus(); else view.focus();
+    });
+    return wrap;
   }
 }
 
@@ -321,10 +347,41 @@ const field = StateField.define({
   ],
 });
 
+// The newline after the closing --- may not be deleted from the body (Backspace on the first body line would glue text
+// onto the fence and turn the whole panel back into raw lines). Whole-block edits (from 0) and later edits pass.
+export const protectFence = EditorState.changeFilter.of(tr => {
+  const fm = panelActive(tr.startState.doc);
+  if (!fm) return true;
+  let bad = false;
+  tr.changes.iterChangedRanges((from, to) => { if (from > 0 && to > from && from <= fm.to && to > fm.to - 3) bad = true; });
+  return !bad;
+});
+// Move focus into the panel's first field (Up from the first body line, Backspace on an empty one, Ctrl/Cmd+Alt+P)
+export function focusProperties(view) {
+  const f = view.dom.querySelector('.props input:not(:disabled), .props .props-add');
+  if (!f) return false;
+  f.focus(); return true;
+}
+export function propertiesUp(view) {
+  const sel = view.state.selection.main, fm = panelActive(view.state.doc);
+  if (!fm || !sel.empty || sel.head <= fm.to) return false;
+  const line = view.state.doc.lineAt(sel.head);
+  if (line.from !== fm.to + 1) return false;
+  const a = view.coordsAtPos(sel.head), b = view.coordsAtPos(line.from);
+  if (a && b && Math.abs(a.top - b.top) > 2) return false;   // on a wrapped second row: a normal Up
+  return focusProperties(view);
+}
+export function propertiesBackspace(view) {
+  const sel = view.state.selection.main, fm = panelActive(view.state.doc);
+  if (!fm || !sel.empty || sel.head !== fm.to + 1) return false;
+  if (view.state.doc.lineAt(sel.head).length === 0) focusProperties(view);   // empty first line: step into the panel
+  return true;   // either way, never merge into the closing ---
+}
+
 // Keep the caret out of the panel (typing there would break the fences) and make sure a body line exists after it.
 const panelActive = doc => { const fm = frontmatter(doc); return fm && parseProps(frontmatterBody(doc, fm)) ? fm : null; };
 export const propertiesExtension = [
-  field,
+  field, protectFence,
   EditorState.transactionFilter.of(tr => {
     const fm = panelActive(tr.newDoc);
     if (!fm) return tr;

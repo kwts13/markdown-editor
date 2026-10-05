@@ -38,6 +38,12 @@
   <div id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" aria-valuemin="180" aria-valuemax="600" tabindex="0"></div>
   <main id="main">
     <header class="topbar">
+      <div class="nav-btns" role="group" aria-label="Note history">
+        <button id="btn-back" class="icon-btn" title="Back" aria-label="Back to the previous note" disabled>
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 10H4.5M9.5 5l-5 5 5 5"/></svg></button>
+        <button id="btn-forward" class="icon-btn" title="Forward" aria-label="Forward to the next note" disabled>
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h11.5M10.5 5l5 5-5 5"/></svg></button>
+      </div>
       <span id="save-status" class="status" role="status" aria-live="polite">Saved</span>
       <div class="seg" role="group" aria-label="Mode">
         <button data-mode-btn="edit" title="Edit (Ctrl/Cmd+E toggles)" aria-pressed="true">Edit</button>

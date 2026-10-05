@@ -2,6 +2,8 @@ import * as store from './store.js';
 import * as sidebar from './sidebar.js';
 import * as editor from './editor.js';
 import * as searchPanel from './searchpanel.js';
+import { splitTarget } from './wikilinks.js';
+import { toast } from './ui.js';
 
 const app = document.getElementById('app');
 const banner = document.getElementById('banner');
@@ -19,6 +21,22 @@ const noteOpened = ({ isNew, find } = {}) => {
 sidebar.init({ noteOpened });
 searchPanel.init({ open: (id, find) => { store.open(id); noteOpened({ find }); } });
 editor.init();
+// Following a [[wikilink]]: open the note (creating it if it doesn't exist yet), then jump to a #heading if given.
+document.addEventListener('wikilink', e => {
+  const { note: name, heading } = splitTarget(e.detail.target);
+  const from = store.get().ui.openNoteId;
+  let note = name ? store.resolveNote(e.detail.target, from) : store.get().notes[from];
+  let created = false;
+  if (!note) {
+    if (e.detail.readOnly) return toast(`"${name}" doesn't exist yet. Switch to Edit mode to create it.`);   // Read mode changes nothing
+    const folder = store.get().notes[from]?.folderId ?? null;
+    note = store.get().notes[store.createNoteNamed(name, folder)];
+    created = true;
+  }
+  if (note.id !== from) { store.open(note.id); noteOpened({}); }
+  if (created) toast(`Created note "${note.name}"`);
+  if (heading) editor.revealHeading(heading) || toast(`No heading "${heading}" in "${note.name}".`);
+});
 document.addEventListener('props:author', e => { if (store.get().ui.author !== e.detail) store.setUi({ author: e.detail }); });
 
 // ---------- layout ----------
@@ -89,6 +107,33 @@ if (prob && prob.error === 'unavailable') setStatus('error');
 window.addEventListener('beforeunload', store.flush);
 window.addEventListener('pagehide', store.flush);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') store.flush(); });
+
+// ---------- back / forward through the notes you've opened ----------
+const btnBack = document.getElementById('btn-back'), btnForward = document.getElementById('btn-forward');
+let navStack = [], navIdx = -1, navigating = false;
+const navLive = i => !!store.get().notes[navStack[i]] && navStack[i] !== store.get().ui.openNoteId;
+const navTarget = dir => { for (let i = navIdx + dir; i >= 0 && i < navStack.length; i += dir) if (navLive(i)) return i; return -1; };
+function updateNav() { btnBack.disabled = navTarget(-1) < 0; btnForward.disabled = navTarget(1) < 0; }
+function recordNav() {
+  const id = store.get().ui.openNoteId;
+  if (!navigating && id && navStack[navIdx] !== id) {
+    navStack = navStack.slice(0, navIdx + 1); navStack.push(id);
+    if (navStack.length > 100) navStack.shift();
+    navIdx = navStack.length - 1;
+  }
+  updateNav();
+}
+function navGo(dir) {
+  const i = navTarget(dir);
+  if (i < 0) return;
+  navIdx = i; navigating = true;
+  store.open(navStack[i]); noteOpened({});
+  navigating = false; updateNav();
+}
+btnBack.onclick = () => navGo(-1);
+btnForward.onclick = () => navGo(1);
+store.subscribe(t => { if (t === 'open') recordNav(); });
+recordNav();
 
 // ---------- export ----------
 // The note's content already carries its YAML properties block, so the file is the note as plain markdown.

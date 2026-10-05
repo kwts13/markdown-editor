@@ -256,11 +256,64 @@ export function createFolder(parentId = null) {
   schedule(); emit('tree');
   return id;
 }
+// ---------- wikilinks ----------
+// [[Name]], [[Folder/Name]], [[Name|alias]], [[Name#Heading]] and [[#Heading]] (this note).
+export function folderPath(folderId) {
+  const names = [];
+  for (let f = state.folders[folderId]; f; f = state.folders[f.parentId]) names.unshift(f.name);
+  return names;
+}
+// Find the note a link target points at. Names match case-insensitively; with several matches, prefer the
+// note in the same folder as the one containing the link, then the oldest.
+export function resolveNote(target, fromId) {
+  const parts = String(target).split('#')[0].split('/').map(x => x.trim().toLowerCase()).filter(Boolean);
+  const name = parts.pop();
+  if (!name) return null;
+  const hits = Object.values(state.notes).filter(n => {
+    if (n.name.toLowerCase() !== name) return false;
+    if (!parts.length) return true;
+    const path = folderPath(n.folderId).map(x => x.toLowerCase());
+    return parts.every((p, i) => path[path.length - parts.length + i] === p);
+  });
+  if (!hits.length) return null;
+  const from = state.notes[fromId];
+  return hits.sort((a, b) => ((b.folderId === from?.folderId) - (a.folderId === from?.folderId)) || (a.createdAt || 0) - (b.createdAt || 0))[0];
+}
+export function createNoteNamed(rawName, folderId = null) {
+  const name = String(rawName).split('/').pop().replace(/[\\]/g, '').trim().slice(0, MAX_NAME) || 'Untitled';
+  const id = createNote(folderId, { silent: true });
+  state.notes[id].name = uniqueName('note', folderId, name, id);
+  state.notes[id].content = defaultContent();
+  schedule(); emit('tree');
+  return id;
+}
+// Rewrite [[links]] that point at a note being renamed so they keep working.
+function relinkAfterRename(note, oldName, newName) {
+  const re = /\[\[([^\[\]\n|#]*?)((?:#[^\[\]\n|]*)?(?:\|[^\[\]\n]*)?)\]\]/g;
+  let changed = false;
+  for (const n of Object.values(state.notes)) {
+    const next = n.content.replace(re, (all, target, rest) => {
+      const last = target.split('/').pop().trim();
+      if (last.toLowerCase() !== oldName.toLowerCase()) return all;
+      if (resolveNote(target, n.id)?.id !== note.id) return all;
+      const prefix = target.includes('/') ? target.slice(0, target.lastIndexOf('/') + 1) : '';
+      return `[[${prefix}${newName}${rest}]]`;
+    });
+    if (next !== n.content) { n.content = next; n.updatedAt = Date.now(); changed = true; }
+  }
+  return changed;
+}
+
 export function rename(kind, id, raw) {
   const v = validateName(kind, id, raw);
   if (v.error) return { ok: false, error: v.error };
   const item = kind === 'folder' ? state.folders[id] : state.notes[id];
-  if (item.name !== v.name) { item.name = v.name; schedule(); emit('tree'); }
+  if (item.name !== v.name) {
+    let relinked = false;
+    if (kind === 'note') relinked = relinkAfterRename(item, item.name, v.name);   // before the name changes, so links still resolve
+    item.name = v.name; schedule(); emit('tree');
+    if (relinked) emit('content');
+  }
   return { ok: true, name: v.name };
 }
 export function canMove(kind, id, targetFolderId) {

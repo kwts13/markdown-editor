@@ -1,10 +1,13 @@
 import * as store from './store.js';
 import { EditorState, Compartment, EditorView, keymap, drawSelection, placeholder, history, historyKeymap, defaultKeymap,
   indentMore, indentLess, markdown, markdownLanguage, markdownKeymap } from '../vendor/codemirror.js';
-import { liveRender } from './live.js';
-import { propertiesExtension, prepareDoc, startProperties, frontmatter } from './properties.js';
+import { liveRender, toggleDetailsAtCaret } from './live.js';
+import { propertiesExtension, prepareDoc, startProperties, frontmatter, propertiesUp, propertiesBackspace, focusProperties } from './properties.js';
+import { exitQuote, tableTab, tableEnter } from './blocks.js';
 import { toggleWrap } from './format.js';
 import { selectionToolbar } from './toolbar.js';
+import { slashCommands } from './slash.js';
+import { wikilinkSuggest, wikilinkBrackets } from './wikilinks.js';
 
 const host = document.getElementById('editor');
 const pane = document.getElementById('panes');
@@ -21,7 +24,7 @@ function newState(content) {
     history(), drawSelection(), EditorView.lineWrapping, placeholder('Start typing in markdown...'),
     // no setext headings: a '---' line under text is a divider, not an H2 underline
     markdown({ base: markdownLanguage, addKeymap: false, extensions: { remove: ['SetextHeading'] } }),
-    liveRender, propertiesExtension, selectionToolbar,
+    liveRender, propertiesExtension, selectionToolbar, slashCommands, wikilinkSuggest, wikilinkBrackets,
     modeSlot.of(modeExt(store.get().ui.viewMode)),
     EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor', spellcheck: 'true' }),
     keymap.of([
@@ -33,9 +36,14 @@ function newState(content) {
         const sel = v.state.selection.main;
         return sel.empty && sel.head === v.state.doc.line(1).to ? startProperties(v) : false;
       } },
+      // Enter on an empty quote/callout line leaves it; in a table it moves to the next row
+      { key: 'Enter', run: v => exitQuote(v) || tableEnter(v) },
+      // keep the Properties panel intact and give the keyboard a way in: Up from the first body line, Ctrl/Cmd+Alt+P
+      { key: 'Backspace', run: propertiesBackspace }, { key: 'ArrowUp', run: propertiesUp }, { key: 'Mod-Alt-p', run: focusProperties },
+      { key: 'Mod-Alt-[', run: toggleDetailsAtCaret },
       { key: 'Escape', run: () => { escaped = true; return false; } },
-      { key: 'Tab', run: v => { if (escaped) { escaped = false; return false; } return indentMore(v) || true; },
-        shift: v => { if (escaped) { escaped = false; return false; } return indentLess(v) || true; } },
+      { key: 'Tab', run: v => { if (escaped) { escaped = false; return false; } return tableTab(v, 1) || indentMore(v) || true; },
+        shift: v => { if (escaped) { escaped = false; return false; } return tableTab(v, -1) || indentLess(v) || true; } },
       ...markdownKeymap, ...historyKeymap, ...defaultKeymap,
     ]),
     EditorView.updateListener.of(u => {
@@ -61,6 +69,11 @@ export function load() {
     loading = false;
     view.scrollDOM.scrollTop = 0;
   }
+  else if (n.content !== view.state.doc.toString()) {   // changed outside the editor (e.g. a [[link]] rewritten by a rename)
+    loading = true;
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: n.content }, addToHistory: false });
+    loading = false;
+  }
   if (document.activeElement !== titleInput) titleInput.value = n.name;
 }
 // Select the first occurrence of `text` in the note body (after any Properties block) and scroll to it.
@@ -70,6 +83,19 @@ export function revealText(text) {
   const from = fm ? fm.to : 0, at = doc.toLowerCase().indexOf(text.toLowerCase(), from);
   if (at < 0) return;
   view.dispatch({ selection: { anchor: at, head: at + text.length }, effects: EditorView.scrollIntoView(at, { y: 'center' }) });
+}
+// Select a heading (by its text) and scroll to it; used by [[Note#Heading]] and [[#Heading]] links.
+export function revealHeading(text) {
+  const want = text.trim().toLowerCase(), doc = view.state.doc;
+  for (let n = 1; n <= doc.lines; n++) {
+    const line = doc.line(n), m = /^#{1,6}\s+(.+?)\s*#*\s*$/.exec(line.text);
+    if (m && m[1].replace(/[*_`]/g, '').trim().toLowerCase() === want) {
+      view.dispatch({ selection: { anchor: line.from }, effects: EditorView.scrollIntoView(line.from, { y: 'start', yMargin: 12 }) });
+      view.focus();
+      return true;
+    }
+  }
+  return false;
 }
 export function focusEditor() {
   applyMode();
@@ -109,6 +135,6 @@ export function init() {
   titleInput.addEventListener('blur', commitTitle);
 
   document.querySelectorAll('[data-mode-btn]').forEach(b => b.onclick = () => setMode(b.dataset.modeBtn));
-  store.subscribe(t => { if (t === 'open' || t === 'tree') load(); });
+  store.subscribe(t => { if (t === 'open' || t === 'tree' || t === 'content') load(); });
   load(); applyMode();
 }
