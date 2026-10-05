@@ -2,6 +2,8 @@ import * as store from './store.js';
 import * as sidebar from './sidebar.js';
 import * as editor from './editor.js';
 import * as searchPanel from './searchpanel.js';
+import { splitTarget } from './wikilinks.js';
+import { toast } from './ui.js';
 
 const app = document.getElementById('app');
 const banner = document.getElementById('banner');
@@ -19,6 +21,18 @@ const noteOpened = ({ isNew, find } = {}) => {
 sidebar.init({ noteOpened });
 searchPanel.init({ open: (id, find) => { store.open(id); noteOpened({ find }); } });
 editor.init();
+// Following a [[wikilink]]: open the note (creating it if it doesn't exist yet), then jump to a #heading if given.
+document.addEventListener('wikilink', e => {
+  const { note: name, heading } = splitTarget(e.detail.target);
+  const from = store.get().ui.openNoteId;
+  let note = name ? store.resolveNote(e.detail.target, from) : store.get().notes[from];
+  if (!note) {
+    const folder = store.get().notes[from]?.folderId ?? null;
+    note = store.get().notes[store.createNoteNamed(name, folder)];
+  }
+  if (note.id !== from) { store.open(note.id); noteOpened({}); }
+  if (heading) editor.revealHeading(heading) || toast(`No heading "${heading}" in "${note.name}".`);
+});
 document.addEventListener('props:author', e => { if (store.get().ui.author !== e.detail) store.setUi({ author: e.detail }); });
 
 // ---------- layout ----------
