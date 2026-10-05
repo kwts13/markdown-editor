@@ -1,4 +1,4 @@
-# Markdown Notes
+# Noted.
 
 Local-first, Obsidian-style markdown notes in the browser. Static site, vanilla ES modules, no build step, no backend.
 
