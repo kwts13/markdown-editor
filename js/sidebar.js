@@ -88,26 +88,27 @@ function render() {
   const ul = document.createElement('ul'); ul.setAttribute('role', 'tree'); ul.setAttribute('aria-label', 'Notes');
   tree.append(ul);
   const build = (parentId, level, parentUl) => {
-    for (const f of store.childFolders(parentId)) {
-      const open = expanded.has(f.id);
-      const li = makeItem(f, 'folder', level);
-      li.setAttribute('aria-expanded', open);
-      if (selectedFolderId === f.id) li.classList.add('selected-folder');
-      parentUl.append(li);
-      if (open) {
-        const sub = document.createElement('ul'); sub.setAttribute('role', 'group'); li.append(sub);
-        build(f.id, level + 1, sub);
-        if (!sub.children.length) {
-          const e = document.createElement('li'); e.setAttribute('role', 'none'); e.className = 'empty';
-          e.style.paddingLeft = (14 + (level + 1) * 16 + 18) + 'px'; e.textContent = 'Empty'; sub.append(e);
+    for (const item of store.children(parentId)) {
+      if (st.folders[item.id]) {
+        const f = item, open = expanded.has(f.id);
+        const li = makeItem(f, 'folder', level);
+        li.setAttribute('aria-expanded', open);
+        if (selectedFolderId === f.id) li.classList.add('selected-folder');
+        parentUl.append(li);
+        if (open) {
+          const sub = document.createElement('ul'); sub.setAttribute('role', 'group'); li.append(sub);
+          build(f.id, level + 1, sub);
+          if (!sub.children.length) {
+            const e = document.createElement('li'); e.setAttribute('role', 'none'); e.className = 'empty';
+            e.style.paddingLeft = (14 + (level + 1) * 16 + 18) + 'px'; e.textContent = 'Empty'; sub.append(e);
+          }
         }
+      } else {
+        const n = item, li = makeItem(n, 'note', level);
+        li.setAttribute('aria-selected', n.id === st.ui.openNoteId);
+        if (n.id === st.ui.openNoteId) li.classList.add('active');
+        parentUl.append(li);
       }
-    }
-    for (const n of store.childNotes(parentId)) {
-      const li = makeItem(n, 'note', level);
-      li.setAttribute('aria-selected', n.id === st.ui.openNoteId);
-      if (n.id === st.ui.openNoteId) li.classList.add('active');
-      parentUl.append(li);
     }
   };
   build(null, 0, ul);
@@ -284,7 +285,7 @@ function onKey(e) {
   if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {   // Alt+Up/Down: move among siblings
     e.preventDefault();
     const it = itemOf(id), parentId = (kind === 'folder' ? it.parentId : it.folderId) || null;
-    const sibs = kind === 'folder' ? store.childFolders(parentId) : store.childNotes(parentId);
+    const sibs = store.children(parentId);
     const k = sibs.findIndex(x => x.id === id), ref = sibs[k + (e.key === 'ArrowUp' ? -1 : 1)];
     if (ref) { doReorder(kind, id, parentId, ref.id, e.key === 'ArrowDown'); setFocused(id, true); }
     return;
@@ -342,15 +343,15 @@ function clearDrop() {
 function reorderTarget(e) {
   if (!dragged) return null;
   const li = e.target.closest?.('li[role=treeitem]');
-  if (!li || li.dataset.id === dragged.id || li.dataset.kind !== dragged.kind) return null;
+  if (!li || li.dataset.id === dragged.id) return null;
   const item = itemOf(li.dataset.id), parentId = (li.dataset.kind === 'folder' ? item.parentId : item.folderId) || null;
   if (dragged.kind === 'folder' && parentId && (parentId === dragged.id || store.isDescendant(parentId, dragged.id))) return null;
   const row = li.querySelector('.row'), r = row.getBoundingClientRect(), y = (e.clientY - r.top) / r.height;
   const isFolder = li.dataset.kind === 'folder', openFolder = isFolder && li.getAttribute('aria-expanded') === 'true';
-  const pos = isFolder ? (y < 0.28 ? 'before' : y > 0.72 && !openFolder ? 'after' : null) : (y < 0.5 ? 'before' : 'after');
+  const pos = isFolder ? (y < 0.3 ? 'before' : y > 0.7 && !openFolder ? 'after' : null) : (y < 0.5 ? 'before' : 'after');
   if (!pos) return null;
   const cur = itemOf(dragged.id), curParent = (dragged.kind === 'folder' ? cur.parentId : cur.folderId) || null;
-  if (store.get().ui.sortBy !== 'manual' && curParent !== parentId) return null;   // cross-folder drops stay plain moves unless ordering is manual
+  if (store.get().ui.sortBy !== 'manual' && curParent !== parentId) return null;   // outside Manual, only same-folder drops reorder; others stay plain moves
   return { row, pos, parentId, refId: li.dataset.id };
 }
 function onDragOver(e) {
