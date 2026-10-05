@@ -21,12 +21,26 @@ function applyLayout() {
   app.style.setProperty('--sidebar-w', sidebarWidth + 'px');
   app.classList.toggle('collapsed', !!sidebarCollapsed);
   document.getElementById('btn-collapse').setAttribute('aria-expanded', !sidebarCollapsed);
-  document.getElementById('btn-expand').hidden = !sidebarCollapsed;
   resizer.setAttribute('aria-valuenow', sidebarWidth);
 }
 function toggleSidebar() { store.setUi({ sidebarCollapsed: !store.get().ui.sidebarCollapsed }); applyLayout(); }
 document.getElementById('btn-collapse').onclick = toggleSidebar;
-document.getElementById('btn-expand').onclick = toggleSidebar;
+document.getElementById('rail-expand').onclick = toggleSidebar;
+document.getElementById('rail-new-note').onclick = () => sidebar.newNote(null);
+
+// ---------- theme ----------
+const darkMq = matchMedia('(prefers-color-scheme: dark)');
+const effTheme = () => store.get().ui.theme || (darkMq.matches ? 'dark' : 'light');
+function applyTheme() {
+  const { theme } = store.get().ui, root = document.documentElement, eff = effTheme();
+  if (theme) root.dataset.theme = theme; else delete root.dataset.theme;
+  root.dataset.eff = eff;
+  const b = document.getElementById('btn-theme');
+  b.title = b.ariaLabel = eff === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+}
+document.getElementById('btn-theme').onclick = () => { store.setUi({ theme: effTheme() === 'dark' ? 'light' : 'dark' }); applyTheme(); };
+darkMq.addEventListener('change', applyTheme);
+applyTheme();
 
 const clampW = w => Math.max(180, Math.min(600, Math.round(w)));
 resizer.addEventListener('pointerdown', e => {
