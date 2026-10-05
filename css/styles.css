@@ -123,7 +123,7 @@ li[aria-expanded="true"] > .row .chev { transform: rotate(90deg); }
 .cm-live .cm-fence-hidden { line-height: .6; font-size: 8px; }
 .cm-live .cm-prop { font: 14px/1.6 var(--font-ui); background: var(--code-bg); padding: 0 16px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
 .cm-live .cm-prop-top { border-top: 1px solid var(--border); border-radius: 8px 8px 0 0; padding-top: 8px; }
-.cm-live .cm-prop-bottom { border-bottom: 1px solid var(--border); border-radius: 0 0 8px 8px; padding-bottom: 8px; margin-bottom: 1em; }
+.cm-live .cm-prop-bottom { border-bottom: 1px solid var(--border); border-radius: 0 0 8px 8px; padding-bottom: 8px; margin-bottom: 29px; }   /* one body line (17px * 1.7), fixed so the collapsed fence's tiny font doesn't shrink it */
 .cm-live .cm-prop-fence { color: var(--muted); font-family: var(--font-mono); font-size: 12px; }
 .cm-live .cm-prop-collapsed { line-height: .3; font-size: 4px; padding-bottom: 4px; }
 .cm-live .cm-prop-key { color: var(--muted); font-weight: 600; }
