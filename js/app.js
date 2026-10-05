@@ -9,10 +9,11 @@ const resizer = document.getElementById('resizer');
 
 store.init();
 const narrow = () => matchMedia('(max-width: 640px)').matches;
-sidebar.init({ noteOpened: ({ isNew } = {}) => {
+sidebar.init({ noteOpened: ({ isNew, find } = {}) => {
   if (narrow() && !store.get().ui.sidebarCollapsed) { store.setUi({ sidebarCollapsed: true }); applyLayout(); }
   editor.load();
   if (isNew) editor.focusTitle(); else editor.focusEditor();
+  if (find) editor.revealText(find);   // opened from a search: jump to the match
 } });
 editor.init();
 document.addEventListener('props:author', e => { if (store.get().ui.author !== e.detail) store.setUi({ author: e.detail }); });
@@ -28,6 +29,7 @@ function applyLayout() {
 function toggleSidebar() { store.setUi({ sidebarCollapsed: !store.get().ui.sidebarCollapsed }); applyLayout(); }
 document.getElementById('btn-collapse').onclick = toggleSidebar;
 document.getElementById('rail-expand').onclick = toggleSidebar;
+document.getElementById('rail-search').onclick = () => { toggleSidebar(); sidebar.focusSearch(); };
 document.getElementById('rail-new-note').onclick = () => sidebar.newNote(null);
 
 // ---------- theme ----------
@@ -101,6 +103,14 @@ document.getElementById('btn-export').onclick = () => {
 };
 
 // ---------- global shortcuts ----------
+// Ctrl/Cmd+K focuses search; capture phase so the editor can't swallow it (CodeMirror binds Ctrl+K to delete-to-line-end).
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.code === 'KeyK') {
+    e.preventDefault(); e.stopPropagation();
+    if (store.get().ui.sidebarCollapsed) toggleSidebar();
+    sidebar.focusSearch();
+  }
+}, true);
 document.addEventListener('keydown', e => {
   const mod = e.metaKey || e.ctrlKey;
   if (mod && e.altKey && e.code === 'KeyN') { e.preventDefault(); sidebar.newNote(null); }

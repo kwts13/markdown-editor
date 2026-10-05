@@ -1,5 +1,6 @@
 import * as store from './store.js';
 import { toast, confirmDialog, folderPicker, showMenu } from './ui.js';
+import { search, highlightWords } from './search.js';
 
 const tree = document.getElementById('tree');
 let focusedId = null;        // roving-tabindex item
@@ -30,6 +31,7 @@ export function init({ noteOpened }) {
   tree.addEventListener('dragleave', e => { if (!tree.contains(e.relatedTarget)) clearDrop(); });
   tree.addEventListener('drop', onDrop);
   tree.addEventListener('dragend', () => { dragged = null; clearDrop(); });
+  initSearch();
   document.getElementById('btn-sort').onclick = openSortMenu;
   document.getElementById('btn-new-note').onclick = () => newNote(selectedFolderId);
   document.getElementById('btn-new-folder').onclick = () => newFolder(selectedFolderId);
@@ -49,6 +51,85 @@ function setFocused(id, focus = true) {
   focusedId = id;
   tree.querySelectorAll('li[role=treeitem]').forEach(li => li.tabIndex = li.dataset.id === id ? 0 : -1);
   if (focus) liOf(id)?.focus();
+}
+
+// ---------- search ----------
+const searchInput = document.getElementById('search-input');
+const searchClear = document.getElementById('search-clear');
+const resultsEl = document.getElementById('search-results');
+let searchTimer = null;
+
+export function focusSearch() { searchInput.focus(); searchInput.select(); }
+export const searching = () => searchInput.value.trim() !== '';
+
+function initSearch() {
+  searchInput.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 100); searchClear.hidden = !searchInput.value; });
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (searchInput.value) clearSearch(); else searchInput.blur(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); clearTimeout(searchTimer); runSearch(); resultsEl.querySelector('.search-hit')?.focus(); }
+    else if (e.key === 'Enter') { e.preventDefault(); clearTimeout(searchTimer); runSearch(); resultsEl.querySelector('.search-hit')?.click(); }
+  });
+  searchClear.addEventListener('click', () => { clearSearch(); searchInput.focus(); });
+  resultsEl.addEventListener('keydown', e => {
+    const hits = [...resultsEl.querySelectorAll('.search-hit')], i = hits.indexOf(document.activeElement);
+    if (i < 0) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); hits[Math.min(i + 1, hits.length - 1)].focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); (i === 0 ? searchInput : hits[i - 1]).focus(); }
+    else if (e.key === 'Escape') { e.preventDefault(); searchInput.focus(); }
+  });
+  store.subscribe(t => { if (t === 'tree' && searching()) runSearch(); });
+}
+function clearSearch() { searchInput.value = ''; searchClear.hidden = true; clearTimeout(searchTimer); runSearch(); }
+
+// <mark> every occurrence of the words inside text
+function highlighted(parent, text, words) {
+  const ws = words.filter(Boolean).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (!ws.length) { parent.append(text); return parent; }
+  let last = 0;
+  for (const m of text.matchAll(new RegExp(ws.join('|'), 'gi'))) {
+    if (m.index > last) parent.append(text.slice(last, m.index));
+    const mk = document.createElement('mark'); mk.textContent = m[0]; parent.append(mk);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parent.append(text.slice(last));
+  return parent;
+}
+const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+
+function runSearch() {
+  const q = searchInput.value.trim();
+  const showResults = q !== '';
+  tree.hidden = showResults; resultsEl.hidden = !showResults;
+  if (!showResults) { resultsEl.textContent = ''; return; }
+  const st = store.get();
+  const { terms, results } = search(st.notes, q);
+  const words = highlightWords(terms);
+  resultsEl.textContent = '';
+  if (!results.length) {
+    const e = el('div', 'search-empty');
+    e.append('No notes match.'); e.append(document.createElement('br')); e.append('Try author:Sam or tags:todo to search properties.');
+    resultsEl.append(e); return;
+  }
+  const count = el('div', 'search-count'); count.textContent = `${results.length} note${results.length === 1 ? '' : 's'}`;
+  count.setAttribute('role', 'status'); resultsEl.append(count);
+  for (const r of results) {
+    const b = el('button', 'search-hit' + (r.note.id === st.ui.openNoteId ? ' active' : '')); b.type = 'button'; b.dataset.id = r.note.id;
+    const name = el('div', 'search-name'); highlighted(name, r.note.name, words); b.append(name);
+    const path = []; for (let f = st.folders[r.note.folderId]; f; f = st.folders[f.parentId]) path.unshift(f.name);
+    if (path.length) { const p = el('div', 'search-path'); p.textContent = path.join(' / '); b.append(p); }
+    if (r.snippet) {
+      const s = el('div', 'search-snippet');
+      s.append(r.snippet.before); const mk = document.createElement('mark'); mk.textContent = r.snippet.match; s.append(mk); highlighted(s, r.snippet.after, words);
+      b.append(s);
+    }
+    if (r.props.length) {
+      const pr = el('div', 'search-props');
+      for (const p of r.props) { const c = el('span', 'search-prop'); const k = document.createElement('b'); k.textContent = p.key; c.append(k, ': '); highlighted(c, p.value, words); c.title = `${p.key}: ${p.value}`; pr.append(c); }
+      b.append(pr);
+    }
+    b.addEventListener('click', () => { store.open(r.note.id); onNoteOpened({ find: words.find(w => !r.note.name.toLowerCase().includes(w)) || words[0] }); runSearch(); });
+    resultsEl.append(b);
+  }
 }
 
 // ---------- sorting ----------
