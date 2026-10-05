@@ -30,7 +30,7 @@ body { font: 14px/1.4 var(--font-ui); background: var(--bg); color: var(--text);
 button { font: inherit; color: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-#app { --sidebar-w: 280px; display: grid; grid-template-columns: var(--sidebar-w) 5px 1fr; height: 100vh; overflow: hidden; }
+#app { --sidebar-w: 280px; display: grid; grid-template-columns: var(--sidebar-w) 0 1fr; height: 100vh; overflow: hidden; }
 #app.collapsed { grid-template-columns: 44px 0 1fr; }
 #app.collapsed #rail { display: flex; }
 #app.collapsed #sidebar, #app.collapsed #resizer { display: none; }
