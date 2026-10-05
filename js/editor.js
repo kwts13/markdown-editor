@@ -1,7 +1,8 @@
 import * as store from './store.js';
 import { EditorState, Compartment, EditorView, keymap, drawSelection, placeholder, history, historyKeymap, defaultKeymap,
   indentMore, indentLess, markdown, markdownLanguage, markdownKeymap } from '../vendor/codemirror.js';
-import { liveRender, frontmatter } from './live.js';
+import { liveRender } from './live.js';
+import { propertiesExtension, prepareDoc, startProperties } from './properties.js';
 import { toggleWrap } from './format.js';
 import { selectionToolbar } from './toolbar.js';
 
@@ -14,24 +15,23 @@ let loading = false;
 const modeSlot = new Compartment();
 const modeExt = m => (m === 'read' ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []);
 
-function newState(doc) {
-  return EditorState.create({ doc, extensions: [
+function newState(content) {
+  const { text: doc, anchor } = prepareDoc(content, EditorState.create({ doc: content }).doc);
+  return EditorState.create({ doc, selection: { anchor }, extensions: [
     history(), drawSelection(), EditorView.lineWrapping, placeholder('Start typing in markdown...'),
     // no setext headings: a '---' line under text is a divider, not an H2 underline
     markdown({ base: markdownLanguage, addKeymap: false, extensions: { remove: ['SetextHeading'] } }),
-    liveRender, selectionToolbar,
+    liveRender, propertiesExtension, selectionToolbar,
     modeSlot.of(modeExt(store.get().ui.viewMode)),
     EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor', spellcheck: 'true' }),
     keymap.of([
       // Ctrl/Cmd+E is the app-level edit/read toggle; stop CodeMirror's emacs line-end binding eating it
       { key: 'Mod-e', run: () => true }, { key: 'Ctrl-e', run: () => true },
       { key: 'Mod-b', run: v => toggleWrap(v, '**') }, { key: 'Mod-i', run: v => toggleWrap(v, '*') },
-      // Enter after a lone '---' on line 1 starts a Properties block: add the closing fence and put the caret inside
+      // Enter after a lone '---' on line 1 starts a Properties block
       { key: 'Enter', run: v => {
-        const sel = v.state.selection.main, line = v.state.doc.line(1);
-        if (!sel.empty || sel.head !== line.to || line.text.trimEnd() !== '---' || frontmatter(v.state.doc)) return false;
-        v.dispatch({ changes: { from: line.to, insert: '\n\n---' }, selection: { anchor: line.to + 1 }, userEvent: 'input' });
-        return true;
+        const sel = v.state.selection.main;
+        return sel.empty && sel.head === v.state.doc.line(1).to ? startProperties(v) : false;
       } },
       { key: 'Escape', run: () => { escaped = true; return false; } },
       { key: 'Tab', run: v => { if (escaped) { escaped = false; return false; } return indentMore(v) || true; },

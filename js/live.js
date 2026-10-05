@@ -1,23 +1,11 @@
 // Live-render ("live preview") for the CodeMirror editor: markdown syntax is styled in place and its
 // markers are hidden except where the caret / selection is, like Obsidian's Live Preview.
 import { Decoration, ViewPlugin, WidgetType, EditorView, syntaxTree } from '../vendor/codemirror.js';
+import { frontmatter, frontmatterBody, parseProps } from './properties.js';
 
 const hide = Decoration.replace({});
 const lineDeco = cls => Decoration.line({ attributes: { class: cls } });
 const markDeco = (cls, attrs) => Decoration.mark({ class: cls, attributes: attrs });
-// Properties: a block at the very top of the note fenced by --- lines (YAML front matter).
-// Only counted when the body looks like properties, so a stray later "---" divider isn't swallowed.
-const PROP_LINE = /^(\s*$|[^\s:#][^:]*:(\s.*)?$|\s+\S.*|-\s.*|#.*)/;
-export function frontmatter(doc) {
-  if (doc.lines < 2 || doc.line(1).text.trimEnd() !== '---') return null;
-  for (let n = 2; n <= doc.lines; n++) {
-    const t = doc.line(n).text.trimEnd();
-    if (t === '---' || t === '...') return { first: 1, last: n, from: 0, to: doc.line(n).to };
-    if (!PROP_LINE.test(t)) return null;
-  }
-  return null;
-}
-
 const SAFE_IMG = /^(https?:|data:image\/(png|jpe?g|gif|webp|svg\+xml);)/i;
 
 class Widget extends WidgetType {
@@ -71,7 +59,9 @@ function build(view) {
     out.push(hide.range(from, to < lineEnd && text(to, to + 1) === ' ' ? to + 1 : to));
   };
 
-  const fm = frontmatter(state.doc);
+  // Properties the typed-field panel can't model (nested YAML, comments...) fall back to styled source text
+  const fmAny = frontmatter(state.doc);
+  const fm = fmAny && parseProps(frontmatterBody(state.doc, fmAny)) ? null : fmAny;
   if (fm) {
     const open = touches(fm.from, fm.to);
     for (let l = fm.first; l <= fm.last; l++) {
@@ -93,7 +83,7 @@ function build(view) {
       from, to,
       enter(n) {
         const { name } = n;
-        if (fm && n.from < fm.to && name !== 'Document') return false;   // handled as properties above
+        if (fmAny && n.from < fmAny.to && name !== 'Document') return false;   // front matter is handled separately
         const parent = n.node.parent;
         let m;
         if ((m = /^ATXHeading([1-6])$/.exec(name))) {
