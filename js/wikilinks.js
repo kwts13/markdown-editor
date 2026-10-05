@@ -1,7 +1,7 @@
 // [[wikilinks]]: finding them in text, and the [[ completion popup.
 import * as store from './store.js';
 import { suggest } from './suggest.js';
-import { syntaxTree } from '../vendor/codemirror.js';
+import { syntaxTree, EditorView, keymap, Prec } from '../vendor/codemirror.js';
 
 // [[target]]  [[target|alias]]  [[Folder/target#Heading]]  [[#Heading]]
 export const WIKILINK_RE = /\[\[([^\[\]\n|]*?)(?:\|([^\[\]\n]*))?\]\]/g;
@@ -37,3 +37,28 @@ const source = view => {
 };
 
 export const wikilinkSuggest = suggest(source);
+
+// Typing the second "[" closes the link ("[[]]", caret inside); typing "]" before an existing "]" steps over it, and
+// Backspace inside an empty "[[]]" removes the whole pair.
+const inCode = (state, pos) => { for (let n = syntaxTree(state).resolveInner(pos, -1); n; n = n.parent) if (/^(FencedCode|CodeBlock|InlineCode|CodeText)$/.test(n.name)) return true; return false; };
+export const wikilinkBrackets = [
+  EditorView.inputHandler.of((view, from, to, text) => {
+    const { state } = view;
+    if (from !== to || text.length !== 1 || !state.facet(EditorView.editable)) return false;
+    if (text === '[' && state.sliceDoc(from - 1, from) === '[' && state.sliceDoc(from - 2, from - 1) !== '[' && state.sliceDoc(from, from + 1) !== ']' && !inCode(state, from)) {
+      view.dispatch({ changes: { from, insert: '[]]' }, selection: { anchor: from + 1 }, userEvent: 'input.type' });
+      return true;
+    }
+    if (text === ']' && state.sliceDoc(from, from + 1) === ']' && /\[\[[^\[\]\n]*\]?$/.test(state.sliceDoc(state.doc.lineAt(from).from, from))) {
+      view.dispatch({ selection: { anchor: from + 1 }, userEvent: 'select' });
+      return true;
+    }
+    return false;
+  }),
+  Prec.high(keymap.of([{ key: 'Backspace', run: v => {
+    const sel = v.state.selection.main;
+    if (!sel.empty || v.state.sliceDoc(sel.head - 2, sel.head + 2) !== '[[]]') return false;
+    v.dispatch({ changes: { from: sel.head - 2, to: sel.head + 2 }, userEvent: 'delete.backward' });
+    return true;
+  } }])),
+];

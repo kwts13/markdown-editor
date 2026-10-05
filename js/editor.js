@@ -1,12 +1,13 @@
 import * as store from './store.js';
 import { EditorState, Compartment, EditorView, keymap, drawSelection, placeholder, history, historyKeymap, defaultKeymap,
   indentMore, indentLess, markdown, markdownLanguage, markdownKeymap } from '../vendor/codemirror.js';
-import { liveRender } from './live.js';
-import { propertiesExtension, prepareDoc, startProperties, frontmatter } from './properties.js';
+import { liveRender, getFolds, restoreFolds, toggleDetailsAtCaret } from './live.js';
+import { propertiesExtension, prepareDoc, startProperties, frontmatter, propertiesUp, propertiesBackspace, focusProperties } from './properties.js';
+import { exitQuote, tableTab, tableEnter } from './blocks.js';
 import { toggleWrap } from './format.js';
 import { selectionToolbar } from './toolbar.js';
 import { slashCommands } from './slash.js';
-import { wikilinkSuggest } from './wikilinks.js';
+import { wikilinkSuggest, wikilinkBrackets } from './wikilinks.js';
 
 const host = document.getElementById('editor');
 const pane = document.getElementById('panes');
@@ -17,13 +18,14 @@ let loading = false;
 const modeSlot = new Compartment();
 const modeExt = m => (m === 'read' ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []);
 
-function newState(content) {
+const foldsByNote = new Map();   // note id -> <details> folds, kept while you switch notes
+function newState(content, folds) {
   const { text: doc, anchor } = prepareDoc(content, EditorState.create({ doc: content }).doc);
-  return EditorState.create({ doc, selection: { anchor }, extensions: [
+  return restoreFolds(EditorState.create({ doc, selection: { anchor }, extensions: [
     history(), drawSelection(), EditorView.lineWrapping, placeholder('Start typing in markdown...'),
     // no setext headings: a '---' line under text is a divider, not an H2 underline
     markdown({ base: markdownLanguage, addKeymap: false, extensions: { remove: ['SetextHeading'] } }),
-    liveRender, propertiesExtension, selectionToolbar, slashCommands, wikilinkSuggest,
+    liveRender, propertiesExtension, selectionToolbar, slashCommands, wikilinkSuggest, wikilinkBrackets,
     modeSlot.of(modeExt(store.get().ui.viewMode)),
     EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor', spellcheck: 'true' }),
     keymap.of([
@@ -35,9 +37,14 @@ function newState(content) {
         const sel = v.state.selection.main;
         return sel.empty && sel.head === v.state.doc.line(1).to ? startProperties(v) : false;
       } },
+      // Enter on an empty quote/callout line leaves it; in a table it moves to the next row
+      { key: 'Enter', run: v => exitQuote(v) || tableEnter(v) },
+      // keep the Properties panel intact and give the keyboard a way in: Up from the first body line, Ctrl/Cmd+Alt+P
+      { key: 'Backspace', run: propertiesBackspace }, { key: 'ArrowUp', run: propertiesUp }, { key: 'Mod-Alt-p', run: focusProperties },
+      { key: 'Mod-Alt-[', run: toggleDetailsAtCaret },
       { key: 'Escape', run: () => { escaped = true; return false; } },
-      { key: 'Tab', run: v => { if (escaped) { escaped = false; return false; } return indentMore(v) || true; },
-        shift: v => { if (escaped) { escaped = false; return false; } return indentLess(v) || true; } },
+      { key: 'Tab', run: v => { if (escaped) { escaped = false; return false; } return tableTab(v, 1) || indentMore(v) || true; },
+        shift: v => { if (escaped) { escaped = false; return false; } return tableTab(v, -1) || indentLess(v) || true; } },
       ...markdownKeymap, ...historyKeymap, ...defaultKeymap,
     ]),
     EditorView.updateListener.of(u => {
@@ -47,7 +54,7 @@ function newState(content) {
       if (u.selectionSet || u.docChanged) escaped = false;
     }),
     EditorView.domEventHandlers({ blur: () => { store.flush(); escaped = false; } }),
-  ] });
+  ] }), folds);
 }
 
 let view = new EditorView({ state: newState(''), parent: host });
@@ -57,9 +64,10 @@ export function load() {
   const n = st.notes[st.ui.openNoteId];
   if (!n) return;
   if (currentId !== n.id) {
+    if (currentId) foldsByNote.set(currentId, getFolds(view.state));
     currentId = n.id;
     loading = true;
-    view.setState(newState(n.content));   // fresh state also resets undo history per note
+    view.setState(newState(n.content, foldsByNote.get(n.id)));   // fresh state also resets undo history per note
     loading = false;
     view.scrollDOM.scrollTop = 0;
   }

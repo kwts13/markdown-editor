@@ -113,7 +113,10 @@ const source = view => {
   if (/FencedCode|CodeBlock|InlineCode|CodeText/.test(inCode.name) || inCode.parent?.name === 'FencedCode') return null;
   let list;
   if (arg !== undefined) list = COMMANDS.filter(c => c.arg && [c.name, ...(c.alias || [])].includes(name));   // "/code js": only commands that take an argument
-  else list = COMMANDS.filter(c => matches(c, name) < 3).sort((a, b) => matches(a, name) - matches(b, name));
+  else {   // names that start with what was typed come first; names that merely contain it only show when nothing starts with it
+    list = COMMANDS.filter(c => matches(c, name) < 3).sort((a, b) => matches(a, name) - matches(b, name));
+    if (name && list.some(c => matches(c, name) === 1)) list = list.filter(c => matches(c, name) === 1);
+  }
   return {
     from, to: head, arg,
     items: list.map(c => ({ title: '/' + c.name + ' — ' + c.title, detail: c.detail, icon: c.icon, apply: (v, r) => c.run(v, r) })),
