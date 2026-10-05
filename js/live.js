@@ -396,7 +396,7 @@ const openWikilinks = EditorView.domEventHandlers({
     const up = ev => {
       document.removeEventListener('mouseup', up, true);
       if (Math.hypot(ev.clientX - x, ev.clientY - y) > 4 || !view.state.selection.main.empty) return;   // a drag-selection, not a click
-      document.dispatchEvent(new CustomEvent('wikilink', { detail: { target, readOnly: !view.state.facet(EditorView.editable) } }));
+      document.dispatchEvent(new CustomEvent('wikilink', { detail: { target, readOnly: !view.state.facet(EditorView.editable), newTab: ev.ctrlKey || ev.metaKey } }));
     };
     document.addEventListener('mouseup', up, true);
     return false;

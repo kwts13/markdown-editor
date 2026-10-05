@@ -30,7 +30,7 @@ body { font: 14px/1.4 var(--font-ui); background: var(--bg); color: var(--text);
 button { font: inherit; color: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-#app { --sidebar-w: 280px; display: grid; grid-template-columns: var(--sidebar-w) 5px 1fr; height: 100vh; overflow: hidden; }
+#app { --sidebar-w: 280px; display: grid; grid-template-columns: var(--sidebar-w) 0 1fr; height: 100vh; overflow: hidden; }
 #app.collapsed { grid-template-columns: 44px 0 1fr; }
 #app.collapsed #rail { display: flex; }
 #app.collapsed #sidebar, #app.collapsed #resizer { display: none; }
@@ -77,18 +77,13 @@ li[aria-expanded="true"] > .row .chev { transform: rotate(90deg); }
 .btn.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
 
 #main { --gutter: max(24px, calc((100% - 780px) / 2)); grid-column: 3; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.topbar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
-.note-head { padding: 28px var(--gutter) 4px; }
+.topbar { display: flex; align-items: center; justify-content: flex-start; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.cm-title-widget { padding: 20px 0 8px; }
 .note-title { display: block; width: 100%; font: 700 30px/1.25 var(--font-ui); color: var(--text); background: transparent; border: 0; border-radius: 4px; padding: 2px 0; margin: 0; outline: none; text-overflow: ellipsis; }
 .note-title::placeholder { color: var(--muted); font-weight: 600; }
 .note-title::selection { background: color-mix(in srgb, var(--accent) 45%, transparent); }
-.status { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.status[data-state="error"] { color: var(--danger); font-weight: 600; }
-.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
-.seg button { background: none; border: 0; padding: 4px 12px; color: var(--muted); }
-.seg button + button { border-left: 1px solid var(--border); }
-.seg button:hover { background: var(--bg-hover); }
-.seg button.on { background: var(--accent); color: var(--accent-text); }
+.seg { display: inline-flex; gap: 2px; }
+.seg .icon-btn[aria-pressed="true"] { background: var(--bg-active); color: var(--text); }
 #banner { background: var(--banner-bg); color: var(--banner-text); padding: 8px 16px; border-bottom: 1px solid var(--banner-border); font-size: 13px; }
 
 #panes { flex: 1; display: grid; min-height: 0; grid-template-columns: 1fr; }
@@ -197,7 +192,7 @@ dialog.modal p { margin: 0 0 16px; color: var(--muted); }
 .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
 
 /* ---- Properties panel (typed fields over the front-matter block) ---- */
-.props-wrap { padding: 0 0 29px; }   /* the gap before the first body line is padding, not margin: see the note on .cm-hr */
+.props-wrap { padding: 16px 0 24px; }   /* 8px under the title + 16 = 24px above, 24px below; padding, not margin: see the note on .cm-hr */
 .props { position: relative; padding: 8px 12px 10px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; font: 14px/1.4 var(--font-ui); color: var(--text); }
 .props-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 4px; }
 .props-title { color: var(--muted); font: 600 11px var(--font-ui); letter-spacing: .06em; text-transform: uppercase; }
@@ -297,7 +292,8 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
 }
 
 /* ---- back / forward ---- */
-.nav-btns { display: flex; gap: 2px; margin-right: auto; }
+.nav-btns { display: flex; gap: 2px; }
+.tb-divider { width: 1px; height: 18px; background: color-mix(in srgb, var(--muted) 45%, transparent); flex: none; }
 .nav-btns .icon-btn:disabled { opacity: .35; cursor: default; background: none; color: var(--muted); }
 
 /* ---- rendered tables ---- */
@@ -318,3 +314,20 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
 .cm-table-widget .tbl-tools button:hover { background: var(--bg-hover); color: var(--text); }
 .cm-table-widget .tbl-sep { width: 1px; height: 16px; background: var(--border); margin: 0 3px; }
 @media (hover: none) { .cm-table-widget .tbl-tools { opacity: 1; } }
+
+/* ---- tabs ---- */
+.tabbar { display: flex; align-items: flex-end; gap: 2px; padding: 6px 8px 0; background: var(--bg-side); border-bottom: 1px solid var(--border); min-height: 38px; }
+.tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { position: relative; display: flex; align-items: center; gap: 4px; max-width: 200px; min-width: 90px; padding: 5px 4px 6px 12px; border: 1px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0; color: var(--muted); cursor: pointer; flex: 0 1 auto; font-size: 13px; user-select: none; }
+.tab:hover { background: var(--bg-hover); color: var(--text); }
+.tab.active { background: var(--bg); color: var(--text); border-color: var(--border); margin-bottom: -1px; padding-bottom: 7px; }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tab-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-close { flex: none; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); font-size: 15px; line-height: 1; opacity: 0; }
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+.tab-close:hover { background: var(--bg-active); color: var(--text); }
+.tab.dragging { opacity: .5; }
+.tab.drop-before::before, .tab.drop-after::after { content: ''; position: absolute; top: 4px; bottom: 2px; width: 2px; background: var(--accent); border-radius: 2px; }
+.tab.drop-before::before { left: -2px; } .tab.drop-after::after { right: -2px; }
+#tab-new { flex: none; margin-bottom: 4px; }

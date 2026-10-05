@@ -2,12 +2,12 @@ import * as store from './store.js';
 import * as sidebar from './sidebar.js';
 import * as editor from './editor.js';
 import * as searchPanel from './searchpanel.js';
+import * as tabs from './tabs.js';
 import { splitTarget } from './wikilinks.js';
 import { toast } from './ui.js';
 
 const app = document.getElementById('app');
 const banner = document.getElementById('banner');
-const statusEl = document.getElementById('save-status');
 const resizer = document.getElementById('resizer');
 
 store.init();
@@ -19,6 +19,7 @@ const noteOpened = ({ isNew, find } = {}) => {
   if (find) editor.revealText(find);   // opened from a search: jump to the match
 };
 sidebar.init({ noteOpened });
+tabs.init({ changed: () => noteOpened({}), newNote: () => sidebar.newNote(null) });
 searchPanel.init({ open: (id, find) => { store.open(id); noteOpened({ find }); } });
 editor.init();
 // Following a [[wikilink]]: open the note (creating it if it doesn't exist yet), then jump to a #heading if given.
@@ -33,7 +34,7 @@ document.addEventListener('wikilink', e => {
     note = store.get().notes[store.createNoteNamed(name, folder)];
     created = true;
   }
-  if (note.id !== from) { store.open(note.id); noteOpened({}); }
+  if (note.id !== from) { store.open(note.id, { newTab: !!e.detail.newTab }); noteOpened({}); }
   if (created) toast(`Created note "${note.name}"`);
   if (heading) editor.revealHeading(heading) || toast(`No heading "${heading}" in "${note.name}".`);
 });
@@ -86,14 +87,10 @@ let notice = '';   // persistent notice (e.g. corrupt-data recovery) shown whene
 function showBanner(msg) { banner.textContent = msg; banner.hidden = !msg; }
 function setStatus(kind) {
   if (kind === 'error') {
-    statusEl.textContent = 'Not saved'; statusEl.dataset.state = 'error';
     showBanner(store.getSaveError() === 'full'
       ? 'Browser storage is full. Your changes are NOT being saved. Copy important notes elsewhere; delete notes to free space.'
       : 'Browser storage is unavailable. Your changes are NOT being saved and will be lost when you close this tab.');
-  } else {
-    statusEl.textContent = kind === 'pending' ? 'Saving...' : 'Saved'; statusEl.dataset.state = kind;
-    if (kind === 'saved') showBanner(notice);
-  }
+  } else if (kind === 'saved') showBanner(notice);   // no "Saved" label any more: only problems are surfaced, in the banner
 }
 store.subscribe((t, d) => { if (t === 'save') setStatus(d); });
 const prob = store.getInitProblem();
@@ -150,6 +147,10 @@ document.getElementById('btn-export').onclick = () => {
 };
 
 // ---------- global shortcuts ----------
+// Ctrl/Cmd+Alt+W closes the current tab (the browser keeps plain Ctrl/Cmd+W for itself).
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyW') { e.preventDefault(); tabs.closeActive(); }
+}, true);
 // Ctrl/Cmd+Space opens search. Capture phase so the editor can't swallow it. Ctrl/Cmd+K does the same: on a Mac,
 // Cmd+Space is normally taken by Spotlight and never reaches the page.
 document.addEventListener('keydown', e => {
