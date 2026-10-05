@@ -37,7 +37,7 @@ export function init({ noteOpened }) {
 
 export function newNote(folderId = null) {
   store.createNote(folderId);
-  onNoteOpened();
+  onNoteOpened({ isNew: true });
 }
 export function newFolder(parentId = null) {
   const id = store.createFolder(parentId);
