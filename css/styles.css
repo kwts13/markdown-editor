@@ -78,7 +78,7 @@ li[aria-expanded="true"] > .row .chev { transform: rotate(90deg); }
 
 #main { --gutter: max(24px, calc((100% - 780px) / 2)); grid-column: 3; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .topbar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
-.cm-title-widget { padding: 20px 0 6px; }
+.cm-title-widget { padding: 20px 0 8px; }
 .note-title { display: block; width: 100%; font: 700 30px/1.25 var(--font-ui); color: var(--text); background: transparent; border: 0; border-radius: 4px; padding: 2px 0; margin: 0; outline: none; text-overflow: ellipsis; }
 .note-title::placeholder { color: var(--muted); font-weight: 600; }
 .note-title::selection { background: color-mix(in srgb, var(--accent) 45%, transparent); }
@@ -197,7 +197,7 @@ dialog.modal p { margin: 0 0 16px; color: var(--muted); }
 .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
 
 /* ---- Properties panel (typed fields over the front-matter block) ---- */
-.props-wrap { padding: 0 0 29px; }   /* the gap before the first body line is padding, not margin: see the note on .cm-hr */
+.props-wrap { padding: 16px 0 24px; }   /* 8px under the title + 16 = 24px above, 24px below; padding, not margin: see the note on .cm-hr */
 .props { position: relative; padding: 8px 12px 10px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; font: 14px/1.4 var(--font-ui); color: var(--text); }
 .props-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 4px; }
 .props-title { color: var(--muted); font: 600 11px var(--font-ui); letter-spacing: .06em; text-transform: uppercase; }
