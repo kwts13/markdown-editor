@@ -68,9 +68,16 @@ export function focusEditor() {
   view.focus();
 }
 
+// New notes start with the default name selected so the first thing a user does is name it.
+export function focusTitle() {
+  applyMode();
+  titleInput.focus(); titleInput.select();
+}
+
 export function applyMode() {
   const m = store.get().ui.viewMode;
   pane.dataset.mode = m;
+  titleInput.readOnly = m === 'read';
   view.dispatch({ effects: modeSlot.reconfigure(modeExt(m)) });
   document.querySelectorAll('[data-mode-btn]').forEach(b => {
     const on = b.dataset.modeBtn === m; b.setAttribute('aria-pressed', on); b.classList.toggle('on', on);

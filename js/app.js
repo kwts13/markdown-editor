@@ -9,9 +9,10 @@ const resizer = document.getElementById('resizer');
 
 store.init();
 const narrow = () => matchMedia('(max-width: 640px)').matches;
-sidebar.init({ noteOpened: () => {
+sidebar.init({ noteOpened: ({ isNew } = {}) => {
   if (narrow() && !store.get().ui.sidebarCollapsed) { store.setUi({ sidebarCollapsed: true }); applyLayout(); }
-  editor.load(); editor.focusEditor();
+  editor.load();
+  if (isNew) editor.focusTitle(); else editor.focusEditor();
 } });
 editor.init();
 
@@ -93,4 +94,4 @@ document.addEventListener('keydown', e => {
 });
 document.getElementById('btn-new-note-top')?.addEventListener('click', () => sidebar.newNote(null));
 
-editor.focusEditor();
+editor.focusTitle();   // the page always opens on a new note: start by naming it

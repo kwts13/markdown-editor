@@ -36,7 +36,6 @@
   <div id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" aria-valuemin="180" aria-valuemax="600" tabindex="0"></div>
   <main id="main">
     <header class="topbar">
-      <input id="note-title" class="title" aria-label="Note name" maxlength="200" spellcheck="false">
       <span id="save-status" class="status" role="status" aria-live="polite">Saved</span>
       <div class="seg" role="group" aria-label="Mode">
         <button data-mode-btn="edit" title="Edit (Ctrl/Cmd+E toggles)" aria-pressed="true">Edit</button>
@@ -44,6 +43,7 @@
       </div>
     </header>
     <div id="banner" role="alert" hidden></div>
+    <div class="note-head"><input id="note-title" class="note-title" aria-label="Note name" placeholder="Untitled" maxlength="200" spellcheck="false"></div>
     <div id="panes" data-mode="edit">
       <div id="editor"></div>
     </div>

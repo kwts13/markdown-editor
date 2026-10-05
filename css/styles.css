@@ -75,10 +75,11 @@ li[aria-expanded="true"] > .row .chev { transform: rotate(90deg); }
 .btn.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
 
 #main { --gutter: max(24px, calc((100% - 780px) / 2)); grid-column: 3; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.topbar { display: flex; align-items: center; gap: 12px; padding: 8px 16px 8px calc(var(--gutter) - 9px); border-bottom: 1px solid var(--border); }
-.title { flex: 1; min-width: 0; font: 600 16px var(--font-ui); color: var(--text); background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 4px 8px; }
-.title:hover { border-color: var(--border); }
-.title:focus { border-color: var(--accent); outline: none; background: var(--bg); }
+.topbar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.note-head { padding: 28px var(--gutter) 4px; }
+.note-title { display: block; width: 100%; font: 700 30px/1.25 var(--font-ui); color: var(--text); background: transparent; border: 0; border-radius: 4px; padding: 2px 0; margin: 0; outline: none; text-overflow: ellipsis; }
+.note-title::placeholder { color: var(--muted); font-weight: 600; }
+.note-title::selection { background: color-mix(in srgb, var(--accent) 45%, transparent); }
 .status { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .status[data-state="error"] { color: var(--danger); font-weight: 600; }
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
@@ -95,8 +96,8 @@ li[aria-expanded="true"] > .row .chev { transform: rotate(90deg); }
 .cm-editor { flex: 1; min-height: 0; background: var(--bg); color: var(--text); outline: none; }
 .cm-editor.cm-focused { outline: none; }
 .cm-scroller { font: 15px/1.65 var(--font-mono); overflow: auto; }
-/* the editor text and the note-name box share the same left edge (--gutter; 9px = title input padding + border) */
-.cm-editor .cm-content { padding: 24px var(--gutter) 40vh; caret-color: var(--caret); }
+/* the note name and the editor text share the same left edge (--gutter) */
+.cm-editor .cm-content { padding: 12px var(--gutter) 40vh; caret-color: var(--caret); }
 .cm-editor .cm-line { padding: 0; }
 .cm-editor .cm-cursor, .cm-editor .cm-dropCursor { border-left: 2px solid var(--caret) !important; }
 .cm-selectionBackground, .cm-focused .cm-selectionBackground { background: color-mix(in srgb, var(--accent) 30%, transparent) !important; }
@@ -178,7 +179,6 @@ dialog.modal p { margin: 0 0 16px; color: var(--muted); }
   #resizer { display: none; }
   #main { --gutter: 17px; }
   .topbar { flex-wrap: wrap; gap: 6px; }
-  .title { flex: 1 1 120px; }
 }
 
 /* ---- Selection formatting toolbar ---- */
