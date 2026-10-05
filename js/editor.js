@@ -2,6 +2,8 @@ import * as store from './store.js';
 import { EditorState, Compartment, EditorView, keymap, drawSelection, placeholder, history, historyKeymap, defaultKeymap,
   indentMore, indentLess, markdown, markdownLanguage, markdownKeymap } from '../vendor/codemirror.js';
 import { liveRender } from './live.js';
+import { toggleWrap } from './format.js';
+import { selectionToolbar } from './toolbar.js';
 
 const host = document.getElementById('editor');
 const pane = document.getElementById('panes');
@@ -16,13 +18,13 @@ function newState(doc) {
   return EditorState.create({ doc, extensions: [
     history(), drawSelection(), EditorView.lineWrapping, placeholder('Start typing in markdown...'),
     markdown({ base: markdownLanguage }),
-    liveRender,
+    liveRender, selectionToolbar,
     modeSlot.of(modeExt(store.get().ui.viewMode)),
     EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor', spellcheck: 'true' }),
     keymap.of([
       // Ctrl/Cmd+E is the app-level edit/read toggle; stop CodeMirror's emacs line-end binding eating it
       { key: 'Mod-e', run: () => true }, { key: 'Ctrl-e', run: () => true },
-      { key: 'Mod-b', run: v => wrap(v, '**') }, { key: 'Mod-i', run: v => wrap(v, '*') },
+      { key: 'Mod-b', run: v => toggleWrap(v, '**') }, { key: 'Mod-i', run: v => toggleWrap(v, '*') },
       { key: 'Escape', run: () => { escaped = true; return false; } },
       { key: 'Tab', run: v => { if (escaped) { escaped = false; return false; } return indentMore(v) || true; },
         shift: v => { if (escaped) { escaped = false; return false; } return indentLess(v) || true; } },
@@ -68,23 +70,6 @@ export function applyMode() {
 }
 export function setMode(m) { store.setUi({ viewMode: m }); applyMode(); focusEditor(); }
 export function toggleMode() { setMode(store.get().ui.viewMode === 'read' ? 'edit' : 'read'); }
-
-// Ctrl/Cmd+B / I: toggle the marker around the selection
-function wrap(v, mark) {
-  const len = mark.length;
-  v.dispatch(v.state.changeByRange(r => {
-    const doc = v.state.doc, sel = doc.sliceString(r.from, r.to);
-    const before = doc.sliceString(Math.max(0, r.from - len), r.from), after = doc.sliceString(r.to, r.to + len);
-    if (r.from !== r.to && before === mark && after === mark) {
-      return { changes: [{ from: r.from - len, to: r.from }, { from: r.to, to: r.to + len }], range: { anchor: r.from - len, head: r.to - len } };
-    }
-    if (sel.length >= len * 2 && sel.startsWith(mark) && sel.endsWith(mark)) {
-      return { changes: { from: r.from, to: r.to, insert: sel.slice(len, -len) }, range: { anchor: r.from, head: r.to - len * 2 } };
-    }
-    return { changes: [{ from: r.from, insert: mark }, { from: r.to, insert: mark }], range: { anchor: r.from + len, head: r.to + len } };
-  }), { userEvent: 'input', scrollIntoView: true });
-  return true;
-}
 
 export function init() {
   const commitTitle = () => {
