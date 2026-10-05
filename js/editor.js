@@ -1,5 +1,5 @@
 import * as store from './store.js';
-import { EditorState, Compartment, EditorView, keymap, drawSelection, placeholder, history, historyKeymap, defaultKeymap,
+import { EditorState, Compartment, EditorView, Decoration, WidgetType, keymap, drawSelection, placeholder, history, historyKeymap, defaultKeymap,
   indentMore, indentLess, markdown, markdownLanguage, markdownKeymap } from '../vendor/codemirror.js';
 import { liveRender, toggleDetailsAtCaret } from './live.js';
 import { propertiesExtension, prepareDoc, startProperties, frontmatter, propertiesUp, propertiesBackspace, focusProperties } from './properties.js';
@@ -12,7 +12,17 @@ import { wikilinkSuggest, wikilinkBrackets } from './wikilinks.js';
 
 const host = document.getElementById('editor');
 const pane = document.getElementById('panes');
-const titleInput = document.getElementById('note-title');
+// The note name lives inside the editor, as a block above the first line, so it scrolls away with the note.
+const titleInput = document.createElement('input');
+titleInput.id = 'note-title'; titleInput.className = 'note-title'; titleInput.placeholder = 'Untitled';
+titleInput.maxLength = 200; titleInput.spellcheck = false; titleInput.setAttribute('aria-label', 'Note name');
+class TitleWidget extends WidgetType {
+  eq() { return true; }
+  ignoreEvent() { return true; }
+  toDOM() { const d = document.createElement('div'); d.className = 'cm-title-widget'; d.append(titleInput); return d; }   // the one input is re-parented into each new editor state
+  get estimatedHeight() { return 80; }
+}
+const titleBlock = EditorView.decorations.of(Decoration.set([Decoration.widget({ widget: new TitleWidget(), block: true, side: -1 }).range(0)]));
 let currentId = null;
 let escaped = false;
 let loading = false;
@@ -25,7 +35,7 @@ function newState(content) {
     history(), drawSelection(), EditorView.lineWrapping, placeholder('Start typing in markdown...'),
     // no setext headings: a '---' line under text is a divider, not an H2 underline
     markdown({ base: markdownLanguage, addKeymap: false, extensions: { remove: ['SetextHeading'] } }),
-    liveRender, tableRendering, propertiesExtension, selectionToolbar, slashCommands, wikilinkSuggest, wikilinkBrackets,
+    titleBlock, liveRender, tableRendering, propertiesExtension, selectionToolbar, slashCommands, wikilinkSuggest, wikilinkBrackets,
     modeSlot.of(modeExt(store.get().ui.viewMode)),
     EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor', spellcheck: 'true' }),
     keymap.of([
@@ -40,7 +50,9 @@ function newState(content) {
       // Enter on an empty quote/callout line leaves it; in a table it moves to the next row
       { key: 'Enter', run: v => exitQuote(v) || tableEnter(v) },
       // keep the Properties panel intact and give the keyboard a way in: Up from the first body line, Ctrl/Cmd+Alt+P
-      { key: 'Backspace', run: propertiesBackspace }, { key: 'ArrowDown', run: tableDown }, { key: 'ArrowUp', run: tableUp }, { key: 'ArrowUp', run: propertiesUp }, { key: 'Mod-Alt-p', run: focusProperties },
+      { key: 'Backspace', run: propertiesBackspace }, { key: 'ArrowDown', run: tableDown }, { key: 'ArrowUp', run: tableUp }, { key: 'ArrowUp', run: propertiesUp },
+      // Up from the very first line goes to the note name above it
+      { key: 'ArrowUp', run: v => { const sel = v.state.selection.main; if (!sel.empty || v.state.doc.lineAt(sel.head).number !== 1 || v.moveVertically(sel, false).head < sel.head) return false; titleInput.focus(); return true; } }, { key: 'Mod-Alt-p', run: focusProperties },
       { key: 'Mod-Alt-[', run: toggleDetailsAtCaret },
       { key: 'Escape', run: () => { escaped = true; return false; } },
       { key: 'Tab', run: v => { if (escaped) { escaped = false; return false; } return tableTab(v, 1) || indentMore(v) || true; },
