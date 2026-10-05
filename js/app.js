@@ -63,7 +63,25 @@ function applyTheme() {
   const b = document.getElementById('btn-theme');
   b.title = b.ariaLabel = eff === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
 }
-document.getElementById('btn-theme').onclick = () => { store.setUi({ theme: effTheme() === 'dark' ? 'light' : 'dark' }); applyTheme(); };
+// The new theme "blooms" outward from the button with a soft edge (View Transitions API); browsers without it, or
+// people who prefer reduced motion, just get the instant switch.
+const BLOOM_MS = 600, BLOOM_FEATHER = 90;
+let bloom = null;
+document.getElementById('btn-theme').onclick = e => {
+  const next = effTheme() === 'dark' ? 'light' : 'dark';
+  const swap = () => { store.setUi({ theme: next }); applyTheme(); };
+  if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return swap();
+  if (bloom) return;   // a bloom is already running: ignore extra clicks until it ends (interrupting one mid-way can wedge the page)
+  const r = e.currentTarget.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const root = document.documentElement;
+  root.style.setProperty('--bloom-x', x + 'px'); root.style.setProperty('--bloom-y', y + 'px');
+  const reach = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + BLOOM_FEATHER;   // far enough to cover the farthest corner
+  const t = bloom = document.startViewTransition(swap);
+  t.ready.then(() => root.animate({ '--bloom-r': ['0px', reach + 'px'] },
+    { duration: BLOOM_MS, easing: 'cubic-bezier(.22, .61, .36, 1)', pseudoElement: '::view-transition-new(root)' })).catch(() => {});
+  const done = () => { if (bloom === t) bloom = null; };
+  t.finished.finally(done); setTimeout(done, BLOOM_MS + 500);   // belt and braces: never leave the button dead
+};
 darkMq.addEventListener('change', applyTheme);
 applyTheme();
 
