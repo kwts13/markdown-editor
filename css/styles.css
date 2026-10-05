@@ -2,6 +2,7 @@
   --bg: #ffffff; --bg-side: #f6f6f8; --bg-hover: #ececf1; --bg-active: #e4defc;
   --text: #1f2328; --muted: #5d6470; --border: #dcdce3; --accent: #5b3fd9; --accent-text: #fff;
   --banner-bg: #fff1cc; --banner-text: #5a3e00; --banner-border: #e8cf8a;
+  --caret: #000;
   --danger: #c4261d; --code-bg: #f1f1f5; --quote: #646a7a; --shadow: 0 8px 28px rgba(20,20,40,.18);
   --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -12,6 +13,7 @@
     --bg: #1b1c21; --bg-side: #15161a; --bg-hover: #25262d; --bg-active: #34306a;
     --text: #e4e5ea; --muted: #a0a4b0; --border: #2e2f38; --accent: #a692ff; --accent-text: #15161a;
     --danger: #ff7b72; --code-bg: #25262d; --quote: #8a8fa0; --shadow: 0 8px 28px rgba(0,0,0,.6);
+    --caret: #fff;
     --banner-bg: #4a3a10; --banner-text: #ffe8a8; --banner-border: #6b5420;
   }
 }
@@ -19,6 +21,7 @@
     --bg: #1b1c21; --bg-side: #15161a; --bg-hover: #25262d; --bg-active: #34306a;
     --text: #e4e5ea; --muted: #a0a4b0; --border: #2e2f38; --accent: #a692ff; --accent-text: #15161a;
     --danger: #ff7b72; --code-bg: #25262d; --quote: #8a8fa0; --shadow: 0 8px 28px rgba(0,0,0,.6);
+    --caret: #fff;
     --banner-bg: #4a3a10; --banner-text: #ffe8a8; --banner-border: #6b5420;
 }
 * { box-sizing: border-box; }
@@ -92,9 +95,9 @@ li[aria-expanded="true"] > .row .chev { transform: rotate(90deg); }
 .cm-editor { flex: 1; min-height: 0; background: var(--bg); color: var(--text); outline: none; }
 .cm-editor.cm-focused { outline: none; }
 .cm-scroller { font: 15px/1.65 var(--font-mono); overflow: auto; }
-.cm-content { padding: 24px max(24px, calc((100% - 780px) / 2)) 40vh; caret-color: var(--text); }
+.cm-content { padding: 24px max(24px, calc((100% - 780px) / 2)) 40vh; caret-color: var(--caret); }
 .cm-line { padding: 0; }
-.cm-cursor, .cm-dropCursor { border-left: 2px solid var(--text); }
+.cm-editor .cm-cursor, .cm-editor .cm-dropCursor { border-left: 2px solid var(--caret) !important; }
 .cm-selectionBackground, .cm-focused .cm-selectionBackground { background: color-mix(in srgb, var(--accent) 30%, transparent) !important; }
 .cm-placeholder { color: var(--muted); }
 
