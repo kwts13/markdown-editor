@@ -35,6 +35,7 @@ export function init() {
     }
     const ui = { ...state.ui, ...(data.ui || {}) };
     ui.expanded = (ui.expanded || []).filter(id => folders[id]);
+    if (!['edit', 'read'].includes(ui.viewMode)) ui.viewMode = 'edit';
     state = { folders, notes, ui };
     // AC-2: discard untouched empty default-named notes
     for (const n of Object.values(state.notes)) {
@@ -43,7 +44,7 @@ export function init() {
   }
   const id = createNote(null, { silent: true });
   state.ui.openNoteId = id;
-  if (state.ui.viewMode === 'preview') state.ui.viewMode = 'edit';
+  if (state.ui.viewMode === 'read') state.ui.viewMode = 'edit';
   persistNow();
   emit('tree'); emit('open');
 }
@@ -125,7 +126,7 @@ export function createNote(folderId = null, opts = {}) {
   const id = uid();
   state.notes[id] = { id, name: uniqueName('note', folderId, 'Untitled'), folderId, content: '', updatedAt: Date.now() };
   if (folderId) reveal(folderId);
-  if (!opts.silent) { state.ui.openNoteId = id; if (state.ui.viewMode === 'preview') state.ui.viewMode = 'edit'; schedule(); emit('tree'); emit('open'); }
+  if (!opts.silent) { state.ui.openNoteId = id; if (state.ui.viewMode === 'read') state.ui.viewMode = 'edit'; schedule(); emit('tree'); emit('open'); }
   return id;
 }
 export function createFolder(parentId = null) {
