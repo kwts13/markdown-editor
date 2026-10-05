@@ -1,6 +1,7 @@
 import * as store from './store.js';
 import * as sidebar from './sidebar.js';
 import * as editor from './editor.js';
+import * as searchPanel from './searchpanel.js';
 
 const app = document.getElementById('app');
 const banner = document.getElementById('banner');
@@ -9,12 +10,14 @@ const resizer = document.getElementById('resizer');
 
 store.init();
 const narrow = () => matchMedia('(max-width: 640px)').matches;
-sidebar.init({ noteOpened: ({ isNew, find } = {}) => {
+const noteOpened = ({ isNew, find } = {}) => {
   if (narrow() && !store.get().ui.sidebarCollapsed) { store.setUi({ sidebarCollapsed: true }); applyLayout(); }
   editor.load();
   if (isNew) editor.focusTitle(); else editor.focusEditor();
   if (find) editor.revealText(find);   // opened from a search: jump to the match
-} });
+};
+sidebar.init({ noteOpened });
+searchPanel.init({ open: (id, find) => { store.open(id); noteOpened({ find }); } });
 editor.init();
 document.addEventListener('props:author', e => { if (store.get().ui.author !== e.detail) store.setUi({ author: e.detail }); });
 
@@ -29,7 +32,6 @@ function applyLayout() {
 function toggleSidebar() { store.setUi({ sidebarCollapsed: !store.get().ui.sidebarCollapsed }); applyLayout(); }
 document.getElementById('btn-collapse').onclick = toggleSidebar;
 document.getElementById('rail-expand').onclick = toggleSidebar;
-document.getElementById('rail-search').onclick = () => { toggleSidebar(); sidebar.focusSearch(); };
 document.getElementById('rail-new-note').onclick = () => sidebar.newNote(null);
 
 // ---------- theme ----------
@@ -103,12 +105,12 @@ document.getElementById('btn-export').onclick = () => {
 };
 
 // ---------- global shortcuts ----------
-// Ctrl/Cmd+K focuses search; capture phase so the editor can't swallow it (CodeMirror binds Ctrl+K to delete-to-line-end).
+// Ctrl/Cmd+Space opens search. Capture phase so the editor can't swallow it. Ctrl/Cmd+K does the same: on a Mac,
+// Cmd+Space is normally taken by Spotlight and never reaches the page.
 document.addEventListener('keydown', e => {
-  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.code === 'KeyK') {
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.code === 'Space' || e.code === 'KeyK')) {
     e.preventDefault(); e.stopPropagation();
-    if (store.get().ui.sidebarCollapsed) toggleSidebar();
-    sidebar.focusSearch();
+    searchPanel.toggle();
   }
 }, true);
 document.addEventListener('keydown', e => {
