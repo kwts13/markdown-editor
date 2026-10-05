@@ -7,6 +7,7 @@ import { exitQuote, tableTab, tableEnter } from './blocks.js';
 import { toggleWrap } from './format.js';
 import { selectionToolbar } from './toolbar.js';
 import { slashCommands } from './slash.js';
+import { tableRendering, tableDown, tableUp } from './tables.js';
 import { wikilinkSuggest, wikilinkBrackets } from './wikilinks.js';
 
 const host = document.getElementById('editor');
@@ -24,7 +25,7 @@ function newState(content) {
     history(), drawSelection(), EditorView.lineWrapping, placeholder('Start typing in markdown...'),
     // no setext headings: a '---' line under text is a divider, not an H2 underline
     markdown({ base: markdownLanguage, addKeymap: false, extensions: { remove: ['SetextHeading'] } }),
-    liveRender, propertiesExtension, selectionToolbar, slashCommands, wikilinkSuggest, wikilinkBrackets,
+    liveRender, tableRendering, propertiesExtension, selectionToolbar, slashCommands, wikilinkSuggest, wikilinkBrackets,
     modeSlot.of(modeExt(store.get().ui.viewMode)),
     EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor', spellcheck: 'true' }),
     keymap.of([
@@ -39,7 +40,7 @@ function newState(content) {
       // Enter on an empty quote/callout line leaves it; in a table it moves to the next row
       { key: 'Enter', run: v => exitQuote(v) || tableEnter(v) },
       // keep the Properties panel intact and give the keyboard a way in: Up from the first body line, Ctrl/Cmd+Alt+P
-      { key: 'Backspace', run: propertiesBackspace }, { key: 'ArrowUp', run: propertiesUp }, { key: 'Mod-Alt-p', run: focusProperties },
+      { key: 'Backspace', run: propertiesBackspace }, { key: 'ArrowDown', run: tableDown }, { key: 'ArrowUp', run: tableUp }, { key: 'ArrowUp', run: propertiesUp }, { key: 'Mod-Alt-p', run: focusProperties },
       { key: 'Mod-Alt-[', run: toggleDetailsAtCaret },
       { key: 'Escape', run: () => { escaped = true; return false; } },
       { key: 'Tab', run: v => { if (escaped) { escaped = false; return false; } return tableTab(v, 1) || indentMore(v) || true; },

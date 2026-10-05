@@ -3,6 +3,7 @@
 import { syntaxTree } from '../vendor/codemirror.js';
 import { suggest } from './suggest.js';
 import { frontmatter } from './properties.js';
+import { focusTableEndingAt } from './tables.js';
 
 const S = '\u0001', E = '\u0002';   // markers in templates: the selection to leave after inserting
 
@@ -57,9 +58,11 @@ const COMMANDS = [
       const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec((r.arg || '').trim());
       const cols = Math.min(8, Math.max(1, m ? +m[1] : 3)), rows = Math.min(20, Math.max(1, m ? +m[2] : 3));
       const row = cells => '| ' + cells.join(' | ') + ' |';
-      const head = Array.from({ length: cols }, (_, i) => (i === 0 ? S : '') + 'Column ' + (i + 1) + (i === 0 ? E : ''));
+      const head = Array.from({ length: cols }, (_, i) => 'Column ' + (i + 1));
       const body = Array.from({ length: rows }, () => row(Array(cols).fill('  ')));
-      put(v, r, [row(head), row(Array(cols).fill('---')), ...body].join('\n'), { block: true, blank: true });
+      const text = [row(head), row(Array(cols).fill('---')), ...body].join('\n');
+      put(v, r, text + '\n', { block: true, blank: true });          // caret lands below the table, which then renders
+      setTimeout(() => focusTableEndingAt(v, v.state.selection.main.head - 1), 0);   // and its first header cell takes focus
     } },
   { name: 'callout', icon: 'ⓘ', title: 'Callout', detail: 'Types: ' + CALLOUTS.slice(0, 6).join(', ') + '. e.g. /callout warning', arg: true,
     run: (v, r) => {
