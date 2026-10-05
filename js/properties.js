@@ -142,14 +142,17 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 
 class PropsWidget extends WidgetType {
   constructor(text, rows, ro) { super(); this.text = text; this.rows = rows; this.ro = ro; }
-  // Edits made in the panel update the doc to match this.text, so the rebuilt widget compares equal
-  // and CodeMirror keeps this DOM (and focus) instead of re-rendering.
   eq(o) { return o.text === this.text && o.ro === this.ro; }
+  // Edits made in the panel write the doc themselves, so the DOM already shows the new text. CodeMirror keeps the
+  // old DOM but swaps in the newest widget object, so compare against what the DOM shows (root.__text), not widget
+  // state; otherwise the second keystroke would rebuild the panel and drop focus.
+  updateDOM(dom) { return dom.__ro === this.ro && dom.__text === this.text; }
   ignoreEvent() { return true; }
 
   toDOM(view) {
     const ro = this.ro, rows = this.rows;
     const root = el('div', 'props');
+    root.__text = this.text; root.__ro = ro;
     const head = el('div', 'props-head');
     head.append(el('span', 'props-title', 'Properties'));
     if (!ro) {
@@ -167,7 +170,7 @@ class PropsWidget extends WidgetType {
 
     const commit = () => {
       const text = serializeProps(rows);
-      this.text = text;
+      this.text = root.__text = text;
       const fm = frontmatter(view.state.doc);
       if (fm && view.state.sliceDoc(0, fm.to) !== text) view.dispatch({ changes: { from: 0, to: fm.to, insert: text }, userEvent: 'input.properties' });
       refresh();
