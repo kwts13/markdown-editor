@@ -190,3 +190,34 @@ dialog.modal p { margin: 0 0 16px; color: var(--muted); }
 .sel-toolbar .tb-bold { font-weight: 800; } .sel-toolbar .tb-italic { font-style: italic; font-family: var(--font-read); }
 .sel-toolbar .tb-strike { text-decoration: line-through; } .sel-toolbar .tb-code { font: 12px var(--font-mono); }
 .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+
+/* ---- Properties panel (typed fields over the front-matter block) ---- */
+.props { margin: 0 0 29px; padding: 8px 12px 10px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; font: 14px/1.4 var(--font-ui); color: var(--text); }
+.props-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 4px; }
+.props-title { color: var(--muted); font: 600 11px var(--font-ui); letter-spacing: .06em; text-transform: uppercase; }
+.props-remove, .props-add { background: none; border: 0; color: var(--muted); border-radius: 6px; padding: 3px 8px; font-size: 12.5px; }
+.props-remove { opacity: 0; } .props:hover .props-remove, .props:focus-within .props-remove { opacity: 1; }
+.props-remove:hover, .props-add:hover { background: var(--bg-hover); color: var(--text); }
+.props-add { margin-top: 2px; }
+.props-empty { color: var(--muted); padding: 2px 8px; font-size: 13px; }
+.props-row { display: grid; grid-template-columns: 28px minmax(90px, 160px) 1fr 24px; align-items: center; gap: 4px; min-height: 30px; }
+.props-type { background: none; border: 0; border-radius: 6px; color: var(--muted); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.props-type:hover:not(:disabled) { background: var(--bg-hover); color: var(--text); }
+.props-key, .props-input, .props-chip-input { font: inherit; color: var(--text); background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 3px 8px; min-width: 0; width: 100%; }
+.props-key { color: var(--muted); font-weight: 600; }
+.props-key:hover:not(:disabled), .props-input:hover:not(:disabled) { border-color: var(--border); }
+.props-key:focus, .props-input:focus, .props-chip-input:focus { outline: none; border-color: var(--accent); background: var(--bg); }
+.props-key.invalid { border-color: var(--danger); color: var(--danger); }
+.props-input:disabled, .props-key:disabled { opacity: 1; -webkit-text-fill-color: currentColor; }
+.props-input::placeholder, .props-chip-input::placeholder { color: var(--muted); opacity: .7; }
+.props-check { margin: 0 8px; width: 16px; height: 16px; accent-color: var(--accent); }
+.props-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 1px 0; }
+.props-chip { display: inline-flex; align-items: center; gap: 2px; background: var(--bg-active); border-radius: 999px; padding: 1px 4px 1px 10px; font-size: 13px; }
+.props-chip-x { background: none; border: 0; color: var(--muted); border-radius: 999px; width: 18px; height: 18px; padding: 0; line-height: 1; }
+.props-chip-x:hover { color: var(--text); background: var(--bg-hover); }
+.props-chip-input { width: auto; flex: 1; min-width: 70px; }
+.props-del { background: none; border: 0; color: var(--muted); border-radius: 6px; width: 24px; height: 24px; opacity: 0; padding: 0; font-size: 16px; line-height: 1; }
+.props-row:hover .props-del, .props-del:focus-visible { opacity: 1; }
+.props-del:hover { background: var(--bg-hover); color: var(--danger); }
+.props-menu-label { display: inline-flex; align-items: center; gap: 8px; }
+@media (max-width: 640px) { .props-row { grid-template-columns: 28px minmax(70px, 110px) 1fr 24px; } .props-remove, .props-del { opacity: 1; } }
